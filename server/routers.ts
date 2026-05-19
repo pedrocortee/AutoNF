@@ -127,6 +127,8 @@ export const appRouter = router({
             })
             .optional(),
           tomadorEmail: z.string().email().optional(),
+          takerCPFCNPJ: z.string().regex(/^\d{11}$|^\d{14}$/, "CPF (11 dígitos) ou CNPJ (14 dígitos)").optional(),
+          takerType: z.enum(["CPF", "CNPJ"]).optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -153,6 +155,8 @@ export const appRouter = router({
           competenceMonth: input.competenceMonth,
           status: "Pendente",
           tomadorEmail: input.tomadorEmail ?? null,
+          takerCPFCNPJ: input.takerCPFCNPJ ?? null,
+          takerType: input.takerType ?? null,
           retIRPJ: Math.round((input.retentions?.irpj ?? 0) * 100),
           retCSLL: Math.round((input.retentions?.csll ?? 0) * 100),
           retCOFINS: Math.round((input.retentions?.cofins ?? 0) * 100),
@@ -333,6 +337,7 @@ export const appRouter = router({
           municipality: z.string().min(1, "Município é obrigatório"),
           state: z.string().regex(/^[A-Z]{2}$/, "Estado deve ser uma sigla de 2 letras"),
           issRate: z.number().min(2).max(5).default(5),
+          cTribNac: z.string().regex(/^\d{4,6}$/, "Código de 4 a 6 dígitos").default("0107"),
         })
       )
       .mutation(async ({ ctx, input }) => {

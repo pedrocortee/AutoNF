@@ -52,6 +52,7 @@ export default function Settings() {
     municipality: "",
     state: "",
     issRate: 5,
+    cTribNac: "0107",
   });
 
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
@@ -78,6 +79,7 @@ export default function Settings() {
       municipality: companyQuery.data.municipality || "",
       state: companyQuery.data.state || "",
       issRate: parseFloat(companyQuery.data.issRate ?? "5"),
+      cTribNac: companyQuery.data.cTribNac ?? "0107",
     });
   }
 
@@ -365,6 +367,27 @@ export default function Settings() {
                       />
                       <p className="text-xs text-slate-500 mt-1">
                         Varia por município: 2% a 5%. Porto Alegre: 5%, Caxias do Sul: 4%.
+                      </p>
+                    </div>
+                    <div>
+                      <Label htmlFor="cTribNac" className="text-sm font-medium">
+                        Código serviço nacional (LC 116/2003)
+                      </Label>
+                      <Input
+                        id="cTribNac"
+                        placeholder="0107"
+                        value={companyFormData.cTribNac}
+                        onChange={(e) =>
+                          setCompanyFormData({
+                            ...companyFormData,
+                            cTribNac: e.target.value.replace(/\D/g, ""),
+                          })
+                        }
+                        className="mt-1"
+                        maxLength={6}
+                      />
+                      <p className="text-xs text-slate-500 mt-1">
+                        Ex: 0107 = TI/Processamento de dados. Veja a lista LC 116.
                       </p>
                     </div>
                   </div>

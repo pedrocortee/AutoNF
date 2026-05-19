@@ -27,6 +27,8 @@ export default function Dashboard() {
   const [showRetentions, setShowRetentions] = useState(false);
   const [formData, setFormData] = useState({
     clientName: "",
+    takerType: "CNPJ" as "CPF" | "CNPJ",
+    takerCPFCNPJ: "",
     serviceDescription: "",
     value: "",
     competenceMonth: new Date().toISOString().slice(0, 7),
@@ -74,6 +76,8 @@ export default function Dashboard() {
     try {
       const result = await createMutation.mutateAsync({
         clientName: formData.clientName,
+        takerType: formData.takerCPFCNPJ ? formData.takerType : undefined,
+        takerCPFCNPJ: formData.takerCPFCNPJ || undefined,
         serviceDescription: formData.serviceDescription,
         value: parseFloat(formData.value),
         competenceMonth: formData.competenceMonth,
@@ -84,6 +88,8 @@ export default function Dashboard() {
       toast.success("Nota fiscal criada com sucesso! Processando...");
       setFormData({
         clientName: "",
+        takerType: "CNPJ",
+        takerCPFCNPJ: "",
         serviceDescription: "",
         value: "",
         competenceMonth: new Date().toISOString().slice(0, 7),
@@ -219,6 +225,32 @@ export default function Dashboard() {
                     onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
                     className="mt-1"
                   />
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <Label htmlFor="takerType">Tipo doc. tomador</Label>
+                    <select
+                      id="takerType"
+                      value={formData.takerType}
+                      onChange={(e) => setFormData({ ...formData, takerType: e.target.value as "CPF" | "CNPJ" })}
+                      className="mt-1 w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                    >
+                      <option value="CNPJ">CNPJ</option>
+                      <option value="CPF">CPF</option>
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="takerCPFCNPJ">CPF/CNPJ do tomador (opcional)</Label>
+                    <Input
+                      id="takerCPFCNPJ"
+                      placeholder={formData.takerType === "CPF" ? "00000000000" : "00000000000000"}
+                      value={formData.takerCPFCNPJ}
+                      onChange={(e) => setFormData({ ...formData, takerCPFCNPJ: e.target.value.replace(/\D/g, "") })}
+                      className="mt-1"
+                      maxLength={formData.takerType === "CPF" ? 11 : 14}
+                    />
+                  </div>
                 </div>
 
                 <div>
