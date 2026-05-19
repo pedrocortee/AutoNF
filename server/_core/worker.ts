@@ -86,10 +86,10 @@ async function processNFSeJob(job: Job<NFSeJobData>): Promise<void> {
         providerIM: company.municipalRegistration,
         opSimpNac: 2, // não optante do Simples — ajustar se necessário
         regEspTrib: 0,
-        takerType: "CNPJ", // placeholder; ajustar quando o cadastro tiver CPFCNPJ do tomador
-        takerDocument: "00000000000000",
+        takerType: (invoice.takerType ?? "CNPJ") as "CPF" | "CNPJ",
+        takerDocument: invoice.takerCPFCNPJ ?? "00000000000000",
         takerName: invoice.clientName,
-        cTribNac: "0107", // Serviços de TI — confirmar na lista nacional LC 116/2003
+        cTribNac: company.cTribNac ?? "0107",
         xDescServ: invoice.serviceDescription,
         vServ: invoice.value,
         pAliqAplic: issRate,
@@ -119,7 +119,7 @@ async function processNFSeJob(job: Job<NFSeJobData>): Promise<void> {
       providerCNPJ: company.cnpj,
       providerInscriptionMunicipal: company.municipalRegistration,
       takerName: invoice.clientName,
-      takerCPFCNPJ: "00000000000000",
+      takerCPFCNPJ: invoice.takerCPFCNPJ ?? "00000000000000",
       serviceDescription: invoice.serviceDescription,
       serviceValue: invoice.value,
       competenceMonth: invoice.competenceMonth,

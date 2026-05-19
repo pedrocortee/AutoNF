@@ -57,6 +57,10 @@ export const invoices = mysqlTable("invoices", {
   pdfPath: varchar("pdfPath", { length: 500 }),
   /** Per-invoice tomador email (overrides defaultTomadorEmail from notificationPrefs) */
   tomadorEmail: varchar("tomadorEmail", { length: 320 }),
+  /** CPF (11 digits) or CNPJ (14 digits) of the taker, no punctuation */
+  takerCPFCNPJ: varchar("takerCPFCNPJ", { length: 14 }),
+  /** Whether takerCPFCNPJ is a CPF or CNPJ */
+  takerType: mysqlEnum("takerType", ["CPF", "CNPJ"]),
   /** Tax retentions in cents (optional, for PJ tomadores) */
   retIRPJ: int("retIRPJ").default(0),
   retCSLL: int("retCSLL").default(0),
@@ -135,6 +139,8 @@ export const companyConfigs = mysqlTable("companyConfigs", {
   state: varchar("state", { length: 2 }).notNull(),
   /** ISS rate as percentage (e.g., 5.00 = 5%). Varies by municipality: 2–5% */
   issRate: decimal("issRate", { precision: 5, scale: 2 }).default("5.00").notNull(),
+  /** National service code LC 116/2003 (4 chars, e.g. "0107" for IT services) */
+  cTribNac: varchar("cTribNac", { length: 6 }).default("0107").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
