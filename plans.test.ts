@@ -282,7 +282,7 @@ describe("Plans System", () => {
 
     it("should reset monthly usage tracking at month boundary", () => {
       const toMonth = (d: Date) =>
-        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 
       expect(toMonth(new Date("2026-05-31"))).toBe("2026-05");
       expect(toMonth(new Date("2026-06-01"))).toBe("2026-06");

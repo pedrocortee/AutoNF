@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { z } from "zod";
+import { isAsaasConfigured, createAsaasCustomer } from "./server/_core/asaas";
 
 // ---------------------------------------------------------------------------
 // Helpers / shared fixtures
@@ -50,33 +51,32 @@ describe("Asaas Client", () => {
       const original = process.env.ASAAS_API_KEY;
       delete process.env.ASAAS_API_KEY;
 
-      // Dynamic import to re-evaluate env check
-      const { isAsaasConfigured } = require("./server/_core/asaas");
       expect(isAsaasConfigured()).toBe(false);
 
-      process.env.ASAAS_API_KEY = original;
+      if (original !== undefined) process.env.ASAAS_API_KEY = original;
     });
 
     it("returns true when ASAAS_API_KEY is set", () => {
+      const original = process.env.ASAAS_API_KEY;
       process.env.ASAAS_API_KEY = "test_key_123";
 
-      const { isAsaasConfigured } = require("./server/_core/asaas");
       expect(isAsaasConfigured()).toBe(true);
 
-      delete process.env.ASAAS_API_KEY;
+      if (original !== undefined) process.env.ASAAS_API_KEY = original;
+      else delete process.env.ASAAS_API_KEY;
     });
   });
 
   describe("request validation", () => {
     it("throws when API key is missing and a request is attempted", async () => {
+      const original = process.env.ASAAS_API_KEY;
       delete process.env.ASAAS_API_KEY;
 
-      const { createAsaasCustomer } = require("./server/_core/asaas");
       await expect(
         createAsaasCustomer({ name: "Test", email: "test@test.com" })
       ).rejects.toThrow("ASAAS_API_KEY");
 
-      delete process.env.ASAAS_API_KEY;
+      if (original !== undefined) process.env.ASAAS_API_KEY = original;
     });
   });
 });

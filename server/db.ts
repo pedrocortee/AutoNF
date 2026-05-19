@@ -497,7 +497,7 @@ export async function getInvoiceUsageThisMonth(userId: number): Promise<number> 
   if (!db) return 0;
 
   const now = new Date();
-  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const month = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 
   const result = await db
     .select()
@@ -513,7 +513,7 @@ export async function incrementInvoiceUsage(userId: number): Promise<void> {
   if (!db) throw new Error("Database not available");
 
   const now = new Date();
-  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const month = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 
   const existing = await db
     .select()

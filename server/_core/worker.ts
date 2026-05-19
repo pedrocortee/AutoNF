@@ -12,7 +12,7 @@ import {
   getNotificationPrefs,
   getUserByIdFromDb,
 } from "../db";
-import { getNFSeClient } from "./nfseIntegration";
+import { getNFSeClient, SefinNacionalClient } from "./nfseIntegration";
 import { generateRPSXML, validateRPSData } from "./rpsGenerator";
 import { signXMLWithCertificate } from "./xmlSigner";
 import { decryptData } from "./crypto";
@@ -22,6 +22,10 @@ import { savePDF } from "./storage";
 import { sendInvoiceSuccessEmail, sendInvoiceErrorEmail } from "./emailService";
 
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
+
+// "homologacao" em dev; "producao" somente quando NFSE_ENV=producao explícito
+const NFSE_ENV: "homologacao" | "producao" =
+  process.env.NFSE_ENV === "producao" ? "producao" : "homologacao";
 
 async function processNFSeJob(job: Job<NFSeJobData>): Promise<void> {
   const { invoiceId, userId } = job.data;
@@ -45,50 +49,116 @@ async function processNFSeJob(job: Job<NFSeJobData>): Promise<void> {
   const municipalityCodeMap: Record<string, string> = {
     "porto alegre": "4314902",
     "caxias do sul": "4305108",
+    "canoas": "4304606",
     "novo hamburgo": "4313409",
+    "pelotas": "4314407",
+    "são leopoldo": "4318705",
+    "sao leopoldo": "4318705",
+    "gravataí": "4309209",
+    "viamão": "4322400",
+    "sapucaia do sul": "4320008",
   };
   const municipalityCode = municipalityCodeMap[company.municipality.toLowerCase()] ?? "4314902";
 
-  const rpsData = {
-    rpsNumber: String(invoice.id),
-    seriesNumber: "1",
-    rpsType: "RPS" as const,
-    providerCNPJ: company.cnpj,
-    providerInscriptionMunicipal: company.municipalRegistration,
-    takerName: invoice.clientName,
-    takerCPFCNPJ: "00000000000000",
-    serviceDescription: invoice.serviceDescription,
-    serviceValue: invoice.value,
-    competenceMonth: invoice.competenceMonth,
-    rpsDate: new Date().toISOString().split("T")[0],
-    issRate: parseFloat(company.issRate ?? "5"),
-    retISS: invoice.retISS ?? 0,
-    retIRPJ: invoice.retIRPJ ?? 0,
-    retCSLL: invoice.retCSLL ?? 0,
-    retCOFINS: invoice.retCOFINS ?? 0,
-    retPIS: invoice.retPIS ?? 0,
-    retINSS: invoice.retINSS ?? 0,
-  };
-
-  const validation = validateRPSData(rpsData);
-  if (!validation.valid) {
-    throw new Error(validation.errors.join(", "));
-  }
-
-  const rpsXml = generateRPSXML(rpsData);
   const decryptedPassword = decryptData(cert.encryptedPassword);
-  const signedXml = signXMLWithCertificate({
-    certificateData: cert.certificateData,
-    certificatePassword: decryptedPassword,
-    xmlContent: rpsXml,
-  }).signedXml;
+  const issRate = parseFloat(company.issRate ?? "5");
 
-  const nfseClient = getNFSeClient(municipalityCode, "homologacao");
-  const result = await nfseClient.submitRPS({
-    rpsXml: signedXml,
-    cnpj: company.cnpj,
-    inscriptionMunicipal: company.municipalRegistration,
-  });
+  let result: { success: boolean; nfseNumber?: string; issueDate?: string; error?: string };
+
+  if (municipalityCode === "4314902") {
+    // Porto Alegre migrou para SEFIN Nacional em Nov/2025 — usa DPS + JWT, não RPS
+    const sefinClient = new SefinNacionalClient(NFSE_ENV);
+    const vBCCents = invoice.value; // no deductions at this stage
+    const vISSQNCents = Math.round(vBCCents * issRate / 100);
+
+    const sefinResult = await sefinClient.submitDPS({
+      cnpj: company.cnpj,
+      certificateData: cert.certificateData,
+      certificatePassword: decryptedPassword,
+      dpsData: {
+        serie: "1",
+        nDPS: String(invoice.id),
+        dCompet: invoice.competenceMonth,
+        tpAmb: NFSE_ENV === "producao" ? 1 : 2,
+        cLocEmi: "4314902",
+        cLocPrestacao: "4314902",
+        providerCNPJ: company.cnpj,
+        providerIM: company.municipalRegistration,
+        opSimpNac: 2, // não optante do Simples — ajustar se necessário
+        regEspTrib: 0,
+        takerType: "CNPJ", // placeholder; ajustar quando o cadastro tiver CPFCNPJ do tomador
+        takerDocument: "00000000000000",
+        takerName: invoice.clientName,
+        cTribNac: "0107", // Serviços de TI — confirmar na lista nacional LC 116/2003
+        xDescServ: invoice.serviceDescription,
+        vServ: invoice.value,
+        pAliqAplic: issRate,
+        vISSQN: invoice.retISS ?? vISSQNCents,
+        tpRetISSQN: (invoice.retISS ?? 0) > 0 ? 1 : 2,
+        retIRPJ:   invoice.retIRPJ   ?? 0,
+        retCSLL:   invoice.retCSLL   ?? 0,
+        retCOFINS: invoice.retCOFINS ?? 0,
+        retPIS:    invoice.retPIS    ?? 0,
+        retINSS:   invoice.retINSS   ?? 0,
+      },
+    });
+
+    result = {
+      success: sefinResult.success,
+      nfseNumber: sefinResult.nNFSe,
+      issueDate: sefinResult.dhEmi,
+      error: sefinResult.error,
+    };
+  } else {
+    // Demais municípios: fluxo ABRASF / SOAP existente
+    const rpsData = {
+      rpsNumber: String(invoice.id),
+      seriesNumber: "1",
+      rpsType: "RPS" as const,
+      municipalityCode,
+      providerCNPJ: company.cnpj,
+      providerInscriptionMunicipal: company.municipalRegistration,
+      takerName: invoice.clientName,
+      takerCPFCNPJ: "00000000000000",
+      serviceDescription: invoice.serviceDescription,
+      serviceValue: invoice.value,
+      competenceMonth: invoice.competenceMonth,
+      rpsDate: new Date().toISOString().split("T")[0],
+      issRate,
+      retISS: invoice.retISS ?? 0,
+      retIRPJ: invoice.retIRPJ ?? 0,
+      retCSLL: invoice.retCSLL ?? 0,
+      retCOFINS: invoice.retCOFINS ?? 0,
+      retPIS: invoice.retPIS ?? 0,
+      retINSS: invoice.retINSS ?? 0,
+    };
+
+    const validation = validateRPSData(rpsData);
+    if (!validation.valid) {
+      throw new Error(validation.errors.join(", "));
+    }
+
+    const rpsXml = generateRPSXML(rpsData);
+    const signedXml = signXMLWithCertificate({
+      certificateData: cert.certificateData,
+      certificatePassword: decryptedPassword,
+      xmlContent: rpsXml,
+    }).signedXml;
+
+    const nfseClient = getNFSeClient(municipalityCode, NFSE_ENV);
+    const rpsResult = await nfseClient.submitRPS({
+      rpsXml: signedXml,
+      cnpj: company.cnpj,
+      inscriptionMunicipal: company.municipalRegistration,
+    });
+
+    result = {
+      success: rpsResult.success,
+      nfseNumber: rpsResult.nfseNumber,
+      issueDate: rpsResult.issueDate,
+      error: rpsResult.error,
+    };
+  }
 
   if (result.success) {
     await updateInvoiceStatus(invoiceId, "Processado");

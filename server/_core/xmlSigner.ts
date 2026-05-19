@@ -31,27 +31,34 @@ export function signXMLWithCertificate(options: SignatureOptions): SignatureResu
   const { certificateData, certificatePassword, xmlContent } = options;
 
   try {
+    // Strip data: URL prefix if the cert came from FileReader.readAsDataURL()
+    let cleanData = certificateData;
+    if (certificateData.startsWith("data:")) {
+      cleanData = certificateData.split(",")[1] ?? certificateData;
+    }
+
     // Decode base64 certificate
-    const binaryData = forge.util.decode64(certificateData);
+    const binaryData = forge.util.decode64(cleanData);
 
     // Parse PKCS#12
     const pkcs12Asn1 = forge.asn1.fromDer(binaryData);
     const pkcs12 = forge.pkcs12.pkcs12FromAsn1(pkcs12Asn1, certificatePassword);
 
-    // Get certificate and private key
     if (!pkcs12.getBags) {
       throw new Error("Invalid PKCS#12 structure");
     }
 
-    const certBags = pkcs12.getBags({ bagType: forge.pki.oids.certBag }) as any;
-    const keyBags = pkcs12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag }) as any;
+    const certBagOid = forge.pki.oids.certBag;
+    const keyBagOid  = forge.pki.oids.pkcs8ShroudedKeyBag;
+    const certBags   = pkcs12.getBags({ bagType: certBagOid });
+    const keyBags    = pkcs12.getBags({ bagType: keyBagOid });
 
-    if (!certBags || !Array.isArray(certBags) || certBags.length === 0 || !keyBags || !Array.isArray(keyBags) || keyBags.length === 0) {
+    const certificate = (certBags[certBagOid] ?? [])[0]?.cert;
+    const privateKey  = (keyBags[keyBagOid]  ?? [])[0]?.key;
+
+    if (!certificate || !privateKey) {
       throw new Error("Certificate or private key not found in PKCS#12");
     }
-
-    const certificate = certBags[0]?.cert;
-    const privateKey = keyBags[0]?.key;
 
     if (!certificate || !privateKey) {
       throw new Error("Failed to extract certificate or private key");

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "tsx watch server/index.ts",
+    "dev:server": "tsx --env-file=.env watch server/index.ts",
     "dev:client": "vite",
     "build": "npm run build:client && npm run build:server",
     "build:client": "vite build",
@@ -17,7 +17,7 @@
     "db:studio": "drizzle-kit studio",
     "seed": "tsx scripts/seed-plans.mjs",
     "test": "vitest run",
-    "worker": "tsx server/worker-entry.ts",
+    "worker": "tsx --env-file=.env server/worker-entry.ts",
     "worker:prod": "node dist/server/worker-entry.js"
   },
   "engines": {
@@ -61,6 +61,7 @@
     "tailwind-merge": "^2.2.0",
     "tailwindcss-animate": "^1.0.7",
     "wouter": "^3.0.0",
+    "xml-crypto": "^6.1.2",
     "xml2js": "^0.6.2",
     "xmlbuilder2": "^3.1.1",
     "zod": "^3.22.0"

@@ -22,6 +22,9 @@ export interface RPSData {
   takerState?: string;
   takerZipCode?: string;
 
+  // IBGE municipality code — defines <CodigoMunicipio> in XML
+  municipalityCode: string;
+
   // Service Details
   serviceDescription: string;
   serviceValue: number; // in cents (e.g., 10000 = R$ 100.00)
@@ -102,7 +105,7 @@ export function generateRPSXML(data: RPSData): string {
       </Valores>
       <ItemListaServico>99.99</ItemListaServico>
       <Descricao>${escapeXML(data.serviceDescription)}</Descricao>
-      <CodigoMunicipio>4314902</CodigoMunicipio>
+      <CodigoMunicipio>${data.municipalityCode}</CodigoMunicipio>
     </Servico>
     <Prestador>
       <CpfCnpj>
@@ -132,23 +135,6 @@ export function generateRPSXML(data: RPSData): string {
           : ""
       }
     </Tomador>
-    <Intermediario>
-      <IdentificacaoIntermediario>
-        <CpfCnpj>
-          <Cnpj>00000000000000</Cnpj>
-        </CpfCnpj>
-      </IdentificacaoIntermediario>
-    </Intermediario>
-    <ConstructorData>
-      <Endereco>
-        <Endereco>Rua Exemplo</Endereco>
-        <Numero>1</Numero>
-        <Bairro>Centro</Bairro>
-        <Cidade>4314902</Cidade>
-        <Uf>RS</Uf>
-        <Cep>90000000</Cep>
-      </Endereco>
-    </ConstructorData>
     <RegimeEspecialTributario>0</RegimeEspecialTributario>
     <OptanteSimplesNacional>2</OptanteSimplesNacional>
     <IncentivoFiscalCultura>2</IncentivoFiscalCultura>
