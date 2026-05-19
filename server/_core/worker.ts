@@ -15,7 +15,6 @@ import {
 import { getNFSeClient, SefinNacionalClient } from "./nfseIntegration";
 import { generateRPSXML, validateRPSData } from "./rpsGenerator";
 import { signXMLWithCertificate } from "./xmlSigner";
-import { decryptData } from "./crypto";
 import { dispatchWebhookEvent } from "./webhookDispatcher";
 import { generateNFSePDF } from "./pdfGenerator";
 import { savePDF } from "./storage";
@@ -60,7 +59,8 @@ async function processNFSeJob(job: Job<NFSeJobData>): Promise<void> {
   };
   const municipalityCode = municipalityCodeMap[company.municipality.toLowerCase()] ?? "4314902";
 
-  const decryptedPassword = decryptData(cert.encryptedPassword);
+  // getActiveCertificate already decrypts both fields before returning
+  const decryptedPassword = cert.encryptedPassword;
   const issRate = parseFloat(company.issRate ?? "5");
 
   let result: { success: boolean; nfseNumber?: string; issueDate?: string; error?: string };

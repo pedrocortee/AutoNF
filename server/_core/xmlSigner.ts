@@ -3,7 +3,7 @@
  * Signs RPS XML with A1 certificate according to ABRASF standard
  */
 
-import * as forge from "node-forge";
+import forge from "node-forge";
 
 export interface SignatureOptions {
   certificateData: string; // Base64 encoded PFX/P12 certificate

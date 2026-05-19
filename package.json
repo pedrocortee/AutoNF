@@ -16,6 +16,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "seed": "tsx scripts/seed-plans.mjs",
+    "seed:test": "tsx --env-file=.env scripts/seed-test.mjs",
     "test": "vitest run",
     "worker": "tsx --env-file=.env server/worker-entry.ts",
     "worker:prod": "node dist/server/worker-entry.js"

@@ -13,7 +13,7 @@
 
 import axios, { AxiosInstance } from "axios";
 import { parseStringPromise } from "xml2js";
-import * as forge from "node-forge";
+import forge from "node-forge";
 import crypto from "crypto";
 import { SignedXml } from "xml-crypto";
 import { type DPSData, generateDPSXML, buildDPSId } from "./dpsGenerator";
