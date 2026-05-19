@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+storage/
+*.p12
+*.pfx
+*.pem
+.claude/
