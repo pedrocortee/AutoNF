@@ -9,7 +9,7 @@
     "dev:client": "vite",
     "build": "npm run build:client && npm run build:server",
     "build:client": "vite build",
-    "build:server": "tsc -p tsconfig.server.json",
+    "build:server": "tsc -p tsconfig.server.json && node --eval \"require('fs').writeFileSync('dist/package.json',JSON.stringify({type:'commonjs'}))\""  ,
     "start": "node dist/server/index.js",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",

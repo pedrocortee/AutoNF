@@ -15,10 +15,11 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
-app.use(clerkMiddleware());
 
 // ─── Health check (UptimeRobot keep-alive no Render free tier) ───────────────
 app.get("/health", (_req, res) => res.json({ ok: true }));
+
+app.use(clerkMiddleware());
 
 // ─── tRPC ─────────────────────────────────────────────────────────────────────
 app.use(
