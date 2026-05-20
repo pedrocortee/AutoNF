@@ -25,6 +25,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1050.0",
     "@clerk/clerk-react": "^5.61.6",
     "@clerk/express": "^2.1.19",
     "@radix-ui/react-avatar": "^1.1.0",
@@ -42,7 +43,6 @@
     "@trpc/client": "^11.0.0",
     "@trpc/react-query": "^11.0.0",
     "@trpc/server": "^11.0.0",
-    "@aws-sdk/client-s3": "^3.0.0",
     "axios": "^1.6.0",
     "bullmq": "^5.0.0",
     "class-variance-authority": "^0.7.0",
