@@ -1,4 +1,3 @@
-import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
@@ -63,7 +62,6 @@ import {
   CANCELAMENTO_MOTIVOS,
 } from "./_core/nfseIntegration";
 import type { CancelamentoMotivo } from "./_core/cancelamentoGenerator";
-import { COOKIE_NAME } from "@shared/const";
 import { validateCertificate } from "./_core/certificateValidator";
 import { decryptData } from "./_core/crypto";
 
@@ -71,9 +69,7 @@ export const appRouter = router({
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
-    logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+    logout: publicProcedure.mutation(() => {
       return { success: true } as const;
     }),
     acceptPrivacy: protectedProcedure.mutation(async ({ ctx }) => {
@@ -85,8 +81,6 @@ export const appRouter = router({
   account: router({
     deleteAccount: protectedProcedure.mutation(async ({ ctx }) => {
       await deleteUserAndData(ctx.user.id);
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true };
     }),
   }),
@@ -783,7 +777,7 @@ export const appRouter = router({
         // Try to read existing PDF from storage
         let pdfBuffer: Buffer | null = null;
         if (invoice.pdfPath) {
-          pdfBuffer = readPDF(invoice.pdfPath);
+          pdfBuffer = await readPDF(invoice.pdfPath);
         }
 
         // On-demand generation for older invoices or if file was lost
@@ -793,7 +787,7 @@ export const appRouter = router({
             throw new TRPCError({ code: "BAD_REQUEST", message: "Dados da empresa não configurados" });
           }
           pdfBuffer = await generateNFSePDF({ invoice, company, nfseNumber: invoice.nfseNumber });
-          const pdfPath = savePDF(input.invoiceId, pdfBuffer);
+          const pdfPath = await savePDF(input.invoiceId, pdfBuffer);
           await savePdfPath(input.invoiceId, pdfPath);
         }
 

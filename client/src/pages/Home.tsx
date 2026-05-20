@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { getLoginUrl } from "@/const";
+import { SignInButton } from "@clerk/clerk-react";
 import { ArrowRight, CheckCircle2, Zap, BarChart3, Shield } from "lucide-react";
 import { useEffect } from "react";
 
@@ -42,12 +42,11 @@ export default function Home() {
             >
               Documentação
             </Button>
-            <Button
-              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
-              onClick={() => window.location.href = getLoginUrl()}
-            >
-              Entrar
-            </Button>
+            <SignInButton mode="modal">
+              <Button className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white">
+                Entrar
+              </Button>
+            </SignInButton>
           </div>
         </div>
       </nav>
@@ -68,14 +67,15 @@ export default function Home() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
-            <Button
-              size="lg"
-              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-base px-8"
-              onClick={() => window.location.href = getLoginUrl()}
-            >
-              Começar Agora
-              <ArrowRight className="ml-2 w-5 h-5" />
-            </Button>
+            <SignInButton mode="modal">
+              <Button
+                size="lg"
+                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-base px-8"
+              >
+                Começar Agora
+                <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+            </SignInButton>
             <Button
               size="lg"
               variant="outline"
@@ -132,14 +132,15 @@ export default function Home() {
           <p className="text-slate-300 mb-8 max-w-xl mx-auto">
             Acesse o painel agora e comece a emitir notas fiscais de forma automática e eficiente.
           </p>
-          <Button
-            size="lg"
-            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-base px-8"
-            onClick={() => window.location.href = getLoginUrl()}
-          >
-            Entrar no Painel
-            <ArrowRight className="ml-2 w-5 h-5" />
-          </Button>
+          <SignInButton mode="modal">
+            <Button
+              size="lg"
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-base px-8"
+            >
+              Entrar no Painel
+              <ArrowRight className="ml-2 w-5 h-5" />
+            </Button>
+          </SignInButton>
         </div>
       </section>
 

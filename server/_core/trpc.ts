@@ -1,9 +1,11 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import type { Request, Response } from "express";
+import { getAuth } from "@clerk/express";
 import { getDb } from "../db";
 import { users } from "../../drizzle/schema";
+import { upsertUser } from "../db";
 import { eq } from "drizzle-orm";
-import { COOKIE_NAME } from "@shared/const";
+import { ENV } from "./env";
 
 export interface Context {
   req: Request;
@@ -12,36 +14,36 @@ export interface Context {
 }
 
 export async function createContext({ req, res }: { req: Request; res: Response }): Promise<Context> {
-  const sessionRaw = req.cookies?.[COOKIE_NAME];
-  let user: Context["user"] = null;
+  const { userId } = getAuth(req);
 
-  if (sessionRaw) {
-    try {
-      const session = JSON.parse(Buffer.from(sessionRaw, "base64").toString("utf8")) as { openId?: string };
-      if (session.openId) {
-        const db = await getDb();
-        if (db) {
-          const [found] = await db
-            .select({
-              id: users.id,
-              openId: users.openId,
-              name: users.name,
-              email: users.email,
-              role: users.role,
-              privacyConsentedAt: users.privacyConsentedAt,
-            })
-            .from(users)
-            .where(eq(users.openId, session.openId))
-            .limit(1);
-          user = found ?? null;
-        }
-      }
-    } catch {
-      // malformed cookie — ignore
-    }
+  if (!userId) {
+    return { req, res, user: null };
   }
 
-  return { req, res, user };
+  const db = await getDb();
+  if (!db) return { req, res, user: null };
+
+  // Lazy upsert — creates user row on first authenticated request
+  await upsertUser({
+    openId: userId,
+    role: userId === ENV.ownerOpenId ? "admin" : "user",
+    lastSignedIn: new Date(),
+  });
+
+  const [found] = await db
+    .select({
+      id: users.id,
+      openId: users.openId,
+      name: users.name,
+      email: users.email,
+      role: users.role,
+      privacyConsentedAt: users.privacyConsentedAt,
+    })
+    .from(users)
+    .where(eq(users.openId, userId))
+    .limit(1);
+
+  return { req, res, user: found ?? null };
 }
 
 const t = initTRPC.context<Context>().create();

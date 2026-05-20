@@ -1,43 +1,24 @@
 import express from "express";
-import cookieParser from "cookie-parser";
 import cors from "cors";
 import path from "path";
-import crypto from "crypto";
+import { clerkMiddleware } from "@clerk/express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { appRouter } from "./routers";
 import { createContext } from "./_core/trpc";
-import { upsertUser } from "./db";
-import { getSessionCookieOptions } from "./_core/cookies";
 import { ENV } from "./_core/env";
-import { COOKIE_NAME } from "@shared/const";
 import { startNFSeWorker } from "./_core/worker";
 
 const app = express();
 
-app.use(cors({ origin: true, credentials: true }));
-app.use(cookieParser());
+app.use(cors({
+  origin: ENV.nodeEnv === "production" ? ENV.publicUrl : true,
+  credentials: true,
+}));
 app.use(express.json());
+app.use(clerkMiddleware());
 
-// ─── Dev auth: auto-login as demo user ────────────────────────────────────────
-// In production, replace this block with your auth provider (Clerk, Auth.js, etc.)
-app.get("/api/auth/login", async (req, res) => {
-  const openId = `dev-user-${ENV.nodeEnv === "development" ? "local" : crypto.randomUUID()}`;
-  await upsertUser({
-    openId,
-    name: "Dev User",
-    email: "dev@autonf.local",
-    loginMethod: "dev",
-    role: "user",
-  });
-  const session = Buffer.from(JSON.stringify({ openId })).toString("base64");
-  res.cookie(COOKIE_NAME, session, getSessionCookieOptions(req));
-  res.redirect("/dashboard");
-});
-
-app.get("/api/auth/logout", (req, res) => {
-  res.clearCookie(COOKIE_NAME, getSessionCookieOptions(req));
-  res.redirect("/");
-});
+// ─── Health check (UptimeRobot keep-alive no Render free tier) ───────────────
+app.get("/health", (_req, res) => res.json({ ok: true }));
 
 // ─── tRPC ─────────────────────────────────────────────────────────────────────
 app.use(

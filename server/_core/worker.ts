@@ -184,7 +184,7 @@ async function processNFSeJob(job: Job<NFSeJobData>): Promise<void> {
           company,
           nfseNumber: result.nfseNumber,
         });
-        const pdfPath = savePDF(invoiceId, pdfBuffer);
+        const pdfPath = await savePDF(invoiceId, pdfBuffer);
         await savePdfPath(invoiceId, pdfPath);
 
         // Send email to tomador if configured
@@ -274,6 +274,14 @@ export function startNFSeWorker(): Worker<NFSeJobData> {
   worker.on("error", (error) => {
     console.error("[NFSeWorker] Worker error:", error);
   });
+
+  const shutdown = async () => {
+    console.log("[NFSeWorker] Shutting down gracefully...");
+    await worker.close();
+    process.exit(0);
+  };
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
 
   return worker;
 }

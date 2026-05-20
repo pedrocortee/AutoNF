@@ -47,13 +47,31 @@ export default function Dashboard() {
     offset: page * ITEMS_PER_PAGE,
   });
   const createMutation = trpc.invoices.create.useMutation();
-  const processMutation = trpc.invoices.processInvoice.useMutation();
+  const submitRPSMutation = trpc.nfse.submitRPS.useMutation();
+  const [pollingInvoiceId, setPollingInvoiceId] = useState<number | null>(null);
+  const statusQuery = trpc.nfse.status.useQuery(
+    { invoiceId: pollingInvoiceId ?? 0 },
+    { enabled: !!pollingInvoiceId, refetchInterval: 2000 }
+  );
 
   useEffect(() => {
     if (!isAuthenticated && !loading) {
       navigate("/");
     }
   }, [isAuthenticated, loading, navigate]);
+
+  useEffect(() => {
+    if (!pollingInvoiceId || !statusQuery.data) return;
+    const { status, errorMessage } = statusQuery.data;
+    if (status === "Processado" || status === "Erro") {
+      setPollingInvoiceId(null);
+      setProcessingInvoices(prev => prev.filter(id => id !== pollingInvoiceId));
+      if (status === "Processado") toast.success("Nota fiscal emitida com sucesso!");
+      else toast.error(`Erro ao emitir: ${errorMessage ?? "Erro desconhecido"}`);
+      listQuery.refetch();
+      metricsQuery.refetch();
+    }
+  }, [statusQuery.data?.status, pollingInvoiceId]);
 
   if (loading || !isAuthenticated) {
     return (
@@ -85,7 +103,7 @@ export default function Dashboard() {
         retentions: formData.retentions,
       });
 
-      toast.success("Nota fiscal criada com sucesso! Processando...");
+      toast.success("Nota fiscal criada! Enviando para processamento...");
       setFormData({
         clientName: "",
         takerType: "CNPJ",
@@ -99,20 +117,16 @@ export default function Dashboard() {
       setShowRetentions(false);
       setIsOpen(false);
 
-      // Simulate automatic processing after 2 seconds
+      setPage(0);
       setProcessingInvoices(prev => [...prev, result.id]);
-      setPage(0); // Reset to first page
-      setTimeout(async () => {
-        try {
-          await processMutation.mutateAsync({ id: result.id });
-          toast.success("Nota fiscal processada com sucesso!");
-        } catch (error) {
-          toast.error("Erro ao processar nota fiscal");
-        }
-        setProcessingInvoices(prev => prev.filter(id => id !== result.id));
+      try {
+        await submitRPSMutation.mutateAsync({ invoiceId: result.id });
+        setPollingInvoiceId(result.id);
         listQuery.refetch();
-        metricsQuery.refetch();
-      }, 2000);
+      } catch (submitError: any) {
+        setProcessingInvoices(prev => prev.filter(id => id !== result.id));
+        toast.error(`Erro ao enfileirar emissão: ${submitError?.message ?? "Erro desconhecido"}`);
+      }
     } catch (error: any) {
       const message: string = error?.message ?? "";
       const isLimitError = message.includes("Limite") || message.includes("plano ativo");
@@ -211,7 +225,7 @@ export default function Dashboard() {
               <DialogHeader>
                 <DialogTitle>Criar Nova Nota Fiscal</DialogTitle>
                 <DialogDescription>
-                  Preencha os dados para criar uma nova nota fiscal. O processamento será simulado automaticamente.
+                  Preencha os dados para criar uma nova nota fiscal. A emissão será enviada à SEFIN automaticamente.
                 </DialogDescription>
               </DialogHeader>
 

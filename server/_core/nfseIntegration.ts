@@ -645,15 +645,19 @@ export class SefinNacionalClient {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         if (error.response) {
+          const status = error.response.status;
           const parsed = parseSefinResponse(error.response.data);
-          return parsed.success
-            ? {
-                success: false,
-                error: `HTTP ${error.response.status}: ${error.response.statusText}`,
-                errorCode: `HTTP_${error.response.status}`,
-                details: error.response.data,
-              }
-            : parsed;
+          // parseSefinResponse returns INVALID_RESPONSE for non-JSON bodies (e.g. IIS HTML pages).
+          // Surface the HTTP status code so the caller knows what actually happened.
+          if (parsed.errorCode === "INVALID_RESPONSE") {
+            return {
+              success: false,
+              error: `HTTP ${status} ${error.response.statusText} — SEFIN Nacional (resposta não-JSON; cert ICP-Brasil necessário)`,
+              errorCode: `HTTP_${status}`,
+              details: error.response.data,
+            };
+          }
+          return parsed;
         }
         return {
           success: false,
