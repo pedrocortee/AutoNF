@@ -80,6 +80,15 @@ export default function InvoiceDetail() {
     }
   };
 
+  const processMutation = trpc.invoices.processInvoice.useMutation({
+    onSuccess: () => {
+      detailQuery.refetch();
+    },
+    onError: (err) => {
+      toast.error(err.message || "Erro ao enviar nota");
+    },
+  });
+
   const cancelMutation = trpc.invoices.cancelInvoice.useMutation({
     onSuccess: () => {
       toast.success("NFS-e cancelada com sucesso");
@@ -180,6 +189,21 @@ export default function InvoiceDetail() {
           </div>
           <div className="flex items-center gap-3">
             {getStatusBadge(invoice.status)}
+            {invoice.status === "Pendente" && (
+              <Button
+                size="sm"
+                disabled={processMutation.isPending}
+                onClick={() => processMutation.mutate({ id: invoice.id })}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {processMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                )}
+                Enviar para Prefeitura
+              </Button>
+            )}
             {invoice.status === "Processado" && (
               <Button
                 variant="outline"
