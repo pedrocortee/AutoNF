@@ -116,9 +116,10 @@ export default function Plans() {
         </div>
 
         {/* Plans Grid */}
-        <div className="grid md:grid-cols-3 gap-8 mb-12">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           {plans?.map((plan) => {
             const isCurrentPlan = currentSubscription?.planId === plan.id;
+            const isFree = plan.pricePerMonth === 0;
             const features = JSON.parse(plan.features || "[]");
 
             return (
@@ -127,7 +128,9 @@ export default function Plans() {
                 className={`relative overflow-hidden transition-all duration-300 ${
                   isCurrentPlan
                     ? "ring-2 ring-blue-500 shadow-2xl shadow-blue-500/20"
-                    : "hover:shadow-xl"
+                    : isFree
+                      ? "ring-1 ring-green-300 hover:shadow-xl"
+                      : "hover:shadow-xl"
                 }`}
               >
                 {isCurrentPlan && (
@@ -137,10 +140,17 @@ export default function Plans() {
                     </Badge>
                   </div>
                 )}
+                {isFree && !isCurrentPlan && (
+                  <div className="absolute top-0 right-0">
+                    <Badge className="rounded-none rounded-bl-lg bg-green-500">
+                      Grátis
+                    </Badge>
+                  </div>
+                )}
 
-                <div className="p-8">
+                <div className="p-6">
                   {/* Plan Name */}
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2">
+                  <h2 className="text-xl font-bold text-slate-900 mb-2">
                     {plan.name}
                   </h2>
                   <p className="text-slate-600 mb-6 text-sm">
@@ -150,10 +160,16 @@ export default function Plans() {
                   {/* Price */}
                   <div className="mb-6">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-bold text-slate-900">
-                        R$ {(plan.pricePerMonth / 100).toFixed(0)}
-                      </span>
-                      <span className="text-slate-600">/mês</span>
+                      {isFree ? (
+                        <span className="text-4xl font-bold text-green-600">Grátis</span>
+                      ) : (
+                        <>
+                          <span className="text-4xl font-bold text-slate-900">
+                            R$ {(plan.pricePerMonth / 100).toFixed(0)}
+                          </span>
+                          <span className="text-slate-600">/mês</span>
+                        </>
+                      )}
                     </div>
                     <p className="text-sm text-slate-500 mt-2">
                       Até {plan.maxInvoicesPerMonth === 999999 ? "∞" : plan.maxInvoicesPerMonth} notas fiscais
@@ -164,14 +180,16 @@ export default function Plans() {
                   <Button
                     onClick={() => handleSubscribe(plan.name)}
                     disabled={isCurrentPlan || subscribingTo === plan.name}
-                    className="w-full mb-8"
+                    className={`w-full mb-6 ${isFree && !isCurrentPlan ? "bg-green-600 hover:bg-green-700" : ""}`}
                     variant={isCurrentPlan ? "outline" : "default"}
                   >
                     {isCurrentPlan
                       ? "Plano Ativo"
                       : subscribingTo === plan.name
                         ? "Processando..."
-                        : "Assinar"}
+                        : isFree
+                          ? "Começar Grátis"
+                          : "Assinar"}
                   </Button>
 
                   {/* Features */}

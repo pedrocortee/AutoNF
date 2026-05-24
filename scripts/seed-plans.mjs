@@ -21,6 +21,18 @@ async function seedPlans() {
     // Define plans
     const plansToSeed = [
       {
+        name: "Gratuito",
+        description: "Teste o sistema sem compromisso com até 3 notas fiscais por mês",
+        pricePerMonth: 0,
+        maxInvoicesPerMonth: 3,
+        features: JSON.stringify([
+          "Até 3 notas fiscais/mês",
+          "Suporte por email",
+          "Dashboard básico",
+        ]),
+        displayOrder: 0,
+      },
+      {
         name: "Starter",
         description: "Perfeito para começar com até 50 notas fiscais por mês",
         pricePerMonth: 25000, // R$ 250.00 em centavos

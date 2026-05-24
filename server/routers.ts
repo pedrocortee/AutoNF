@@ -453,6 +453,11 @@ export const appRouter = router({
           throw new TRPCError({ code: "NOT_FOUND", message: "Plano não encontrado" });
         }
 
+        if (plan.pricePerMonth === 0) {
+          await createSubscription(ctx.user.id, plan.id);
+          return { directActivation: true, paymentUrl: null };
+        }
+
         if (!isAsaasConfigured()) {
           // Dev mode: activate directly without payment
           await createSubscription(ctx.user.id, plan.id);
