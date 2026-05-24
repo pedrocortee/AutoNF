@@ -8,7 +8,15 @@ import { appRouter } from "./routers";
 import { createContext } from "./_core/trpc";
 import { ENV } from "./_core/env";
 import { startNFSeWorker } from "./_core/worker";
-import { upsertUser } from "./db";
+import {
+  upsertUser,
+  getBillingInvoicesByAsaasSubscriptionId,
+  updateBillingInvoice,
+  getPlanByName,
+  createSubscription,
+  updateSubscriptionByUserId,
+} from "./db";
+import type { AsaasWebhookEvent } from "./_core/asaas";
 
 const app = express();
 
@@ -73,6 +81,49 @@ app.post(
 );
 
 app.use(express.json());
+
+// ─── Asaas webhook — raw Express route (tRPC can't receive Asaas's plain JSON) ─
+app.post("/api/webhooks/asaas", async (req, res) => {
+  try {
+    const { event, payment } = req.body as AsaasWebhookEvent;
+    const subscriptionId = payment?.subscription;
+
+    if (!payment || !subscriptionId) {
+      res.json({ ok: true });
+      return;
+    }
+
+    const invoices = await getBillingInvoicesByAsaasSubscriptionId(subscriptionId);
+    const invoice = invoices[0];
+
+    if (event === "PAYMENT_CONFIRMED" || event === "PAYMENT_RECEIVED") {
+      if (invoice) {
+        await updateBillingInvoice(invoice.id, {
+          status: "confirmed",
+          paymentMethod: payment.billingType,
+          asaasPaymentId: payment.id,
+        });
+        const plan = await getPlanByName(invoice.planName);
+        if (plan) {
+          await createSubscription(invoice.userId, plan.id);
+          console.log(`[asaas-webhook] subscription activated for userId=${invoice.userId} plan=${plan.name}`);
+        }
+      }
+    } else if (event === "PAYMENT_OVERDUE") {
+      if (invoice) {
+        await updateBillingInvoice(invoice.id, { status: "overdue" });
+      }
+    } else if (event === "PAYMENT_DELETED" || event === "SUBSCRIPTION_DELETED") {
+      if (invoice) {
+        await updateBillingInvoice(invoice.id, { status: "cancelled" });
+        await updateSubscriptionByUserId(invoice.userId, { status: "cancelled" });
+      }
+    }
+  } catch (err) {
+    console.error("[asaas-webhook] error:", err);
+  }
+  res.json({ ok: true });
+});
 
 app.use(clerkMiddleware());
 

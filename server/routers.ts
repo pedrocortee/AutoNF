@@ -24,8 +24,6 @@ import {
   upsertAsaasCustomer,
   getAsaasCustomerByUserId,
   createBillingInvoice,
-  updateBillingInvoiceByAsaasPaymentId,
-  getBillingInvoiceByAsaasPaymentId,
   listBillingInvoices,
   updateSubscriptionByUserId,
   getUserByIdFromDb,
@@ -350,7 +348,7 @@ export const appRouter = router({
     }),
 
     getActive: protectedProcedure.query(async ({ ctx }) => {
-      return getActiveCertificate(ctx.user.id);
+      return (await getActiveCertificate(ctx.user.id)) ?? null;
     }),
 
     expirySoon: protectedProcedure.query(async ({ ctx }) => {
@@ -410,7 +408,7 @@ export const appRouter = router({
     }),
 
     getSubscription: protectedProcedure.query(async ({ ctx }) => {
-      return getUserSubscription(ctx.user.id);
+      return (await getUserSubscription(ctx.user.id)) ?? null;
     }),
 
     subscribe: protectedProcedure
@@ -492,6 +490,7 @@ export const appRouter = router({
           amount: plan.pricePerMonth,
           dueDate: nextDueDate,
           asaasSubscriptionId: asaasSub.id,
+          paymentUrl: asaasSub.paymentLink ?? null,
           status: "pending",
         });
 
@@ -533,72 +532,6 @@ export const appRouter = router({
     list: protectedProcedure.query(async ({ ctx }) => {
       return listBillingInvoices(ctx.user.id);
     }),
-  }),
-
-  webhooks: router({
-    /**
-     * Asaas webhook handler — public endpoint.
-     * Configure in Asaas dashboard: POST /api/trpc/webhooks.asaas
-     */
-    asaas: publicProcedure
-      .input(
-        z.object({
-          event: z.string(),
-          payment: z
-            .object({
-              id: z.string(),
-              customer: z.string(),
-              subscription: z.string().optional(),
-              value: z.number(),
-              billingType: z.string(),
-              status: z.string(),
-              dueDate: z.string(),
-              paymentDate: z.string().optional(),
-              invoiceUrl: z.string().optional(),
-            })
-            .optional(),
-        })
-      )
-      .mutation(async ({ input }) => {
-        const { event, payment } = input;
-
-        if (!payment) return { ok: true };
-
-        const existingInvoice = await getBillingInvoiceByAsaasPaymentId(payment.id);
-
-        if (event === "PAYMENT_CONFIRMED" || event === "PAYMENT_RECEIVED") {
-          // Activate subscription
-          if (existingInvoice) {
-            await updateBillingInvoiceByAsaasPaymentId(payment.id, {
-              status: "confirmed",
-              paymentMethod: payment.billingType,
-            });
-
-            // Find userId via billing invoice and activate subscription
-            const userId = existingInvoice.userId;
-            const planName = existingInvoice.planName;
-            const plan = await getPlanByName(planName);
-            if (plan && userId) {
-              await createSubscription(userId, plan.id);
-            }
-          }
-        }
-
-        if (event === "PAYMENT_OVERDUE") {
-          if (existingInvoice) {
-            await updateBillingInvoiceByAsaasPaymentId(payment.id, { status: "overdue" });
-          }
-        }
-
-        if (event === "PAYMENT_DELETED" || event === "SUBSCRIPTION_DELETED") {
-          if (existingInvoice) {
-            await updateBillingInvoiceByAsaasPaymentId(payment.id, { status: "cancelled" });
-            await updateSubscriptionByUserId(existingInvoice.userId, { status: "cancelled" });
-          }
-        }
-
-        return { ok: true };
-      }),
   }),
 
   webhookEndpoints: router({

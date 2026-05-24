@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 import { AlertCircle, CheckCircle2, Clock, FileText, XCircle } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -45,7 +46,11 @@ export default function Billing() {
 
   const cancelMutation = trpc.payments.cancelSubscription.useMutation({
     onSuccess: () => {
+      toast.success("Assinatura cancelada com sucesso.");
       window.location.reload();
+    },
+    onError: (err) => {
+      toast.error(err.message || "Erro ao cancelar assinatura");
     },
   });
 

@@ -1,4 +1,4 @@
-import { eq, sql, and, desc } from "drizzle-orm";
+import { eq, sql, and, desc, like, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, invoices, invoiceHistory, InsertInvoice, companyConfigs, digitalCertificates, InsertCompanyConfig, InsertDigitalCertificate, CompanyConfig, DigitalCertificate, plans, subscriptions, invoiceUsage, Plan, Subscription, InvoiceUsage, asaasCustomers, AsaasCustomer, InsertAsaasCustomer, billingInvoices, BillingInvoice, InsertBillingInvoice, type InsertInvoiceHistory, webhookEndpoints, webhookDeliveries, WebhookEndpoint, WebhookDelivery, InsertWebhookEndpoint, InsertWebhookDelivery, notificationPrefs, NotificationPrefs } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -113,7 +113,7 @@ export async function getUserInvoices(
   }
 
   if (filters?.clientName) {
-    conditions.push(sql`${invoices.clientName} LIKE ${"%" + filters.clientName + "%"}`);
+    conditions.push(like(invoices.clientName, `%${filters.clientName}%`));
   }
 
   if (filters?.competenceMonth) {
@@ -671,7 +671,7 @@ export async function deleteUserAndData(userId: number): Promise<void> {
 
   // Delete in dependency order
   await db.delete(invoiceHistory).where(
-    sql`${invoiceHistory.invoiceId} IN (SELECT id FROM invoices WHERE userId = ${userId})`
+    inArray(invoiceHistory.invoiceId, db.select({ id: invoices.id }).from(invoices).where(eq(invoices.userId, userId)))
   );
   await db.delete(invoices).where(eq(invoices.userId, userId));
   await db.delete(digitalCertificates).where(eq(digitalCertificates.userId, userId));
@@ -682,7 +682,7 @@ export async function deleteUserAndData(userId: number): Promise<void> {
   await db.delete(billingInvoices).where(eq(billingInvoices.userId, userId));
   // Cascade webhook deliveries before endpoints
   await db.delete(webhookDeliveries).where(
-    sql`${webhookDeliveries.webhookEndpointId} IN (SELECT id FROM webhookEndpoints WHERE userId = ${userId})`
+    inArray(webhookDeliveries.webhookEndpointId, db.select({ id: webhookEndpoints.id }).from(webhookEndpoints).where(eq(webhookEndpoints.userId, userId)))
   );
   await db.delete(webhookEndpoints).where(eq(webhookEndpoints.userId, userId));
   await db.delete(users).where(eq(users.id, userId));
