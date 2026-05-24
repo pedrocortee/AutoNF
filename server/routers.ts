@@ -157,7 +157,7 @@ export const appRouter = router({
           retISS,
         });
 
-        const invoiceId = (result as any).insertId;
+        const invoiceId = (result as any)[0].insertId;
 
         await incrementInvoiceUsage(ctx.user.id);
         await addInvoiceHistory(invoiceId, "Criado", "Pendente", "Nota fiscal criada");
@@ -566,7 +566,7 @@ export const appRouter = router({
           secret,
           isActive: "true",
         });
-        const id = (result as any).insertId as number;
+        const id = (result as any)[0].insertId as number;
         return { id, secret };
       }),
 
