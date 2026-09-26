@@ -22,12 +22,12 @@ async function seedPlans() {
     const plansToSeed = [
       {
         name: "Gratuito",
-        description: "Teste o sistema sem compromisso com até 3 notas fiscais por mês",
+        description: "Teste o sistema sem compromisso: uma franquia única por conta",
         pricePerMonth: 0,
         maxInvoicesPerMonth: 3,
         maxInboundDocsPerMonth: 10,
         features: JSON.stringify([
-          "Até 3 notas fiscais/mês",
+          "3 notas fiscais no total da conta",
           "Suporte por email",
           "Dashboard básico",
         ]),

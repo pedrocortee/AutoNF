@@ -59,7 +59,8 @@ inboundRoutes.post(
       const results: IngestResult[] = [...rejected];
       for (const f of files) {
         if (remaining <= 0) {
-          results.push({ filename: f.filename, status: "rejeitado", reason: "Limite mensal de documentos do plano atingido" });
+          const reason = allowance.period === "account" ? "Limite de documentos do plano gratuito atingido" : "Limite mensal de documentos do plano atingido";
+          results.push({ filename: f.filename, status: "rejeitado", reason });
           continue;
         }
         const r = await ingestFile(userId, f);
