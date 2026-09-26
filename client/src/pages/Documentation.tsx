@@ -161,7 +161,7 @@ export default function Documentation() {
             <div className="bg-white rounded-lg border border-slate-200 p-6">
               <h3 className="font-semibold text-slate-900 mb-3">Planos e Assinaturas</h3>
               <ul className="list-disc list-inside space-y-1 text-slate-700 ml-2">
-                <li>4 planos: Gratuito (3 notas/mês), Starter, Professional e Enterprise</li>
+                <li>4 planos: Gratuito (3 notas no total da conta), Starter, Professional e Enterprise</li>
                 <li>Controle de uso mensal com bloqueio ao atingir o limite</li>
                 <li>Upgrade e downgrade imediatos</li>
                 <li>Plano Gratuito ativa diretamente; planos pagos redirecionam ao checkout do Asaas</li>

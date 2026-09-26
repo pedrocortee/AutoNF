@@ -125,7 +125,7 @@ export default function Inbox() {
             <UploadDropzone onUploaded={refresh} />
             {allowanceQuery.data?.limit != null && (
               <p className="-mt-2 text-xs text-muted-foreground">
-                {allowanceQuery.data.used} de {allowanceQuery.data.limit} documentos enviados este mês no plano {allowanceQuery.data.planName}.
+                {allowanceQuery.data.used} de {allowanceQuery.data.limit} documentos enviados {allowanceQuery.data.period === "account" ? "no total" : "este mês"} no plano {allowanceQuery.data.planName}.
               </p>
             )}
           </>

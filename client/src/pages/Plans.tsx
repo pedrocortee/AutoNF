@@ -190,8 +190,8 @@ export default function Plans() {
                     {isFree ? (
                       <div>
                         <p className="text-4xl font-extrabold text-foreground">Grátis</p>
-                        <p className="text-xs text-muted-foreground mt-1">Para sempre</p>
-                        <p className="text-xs text-muted-foreground">Entrada: {plan.maxInboundDocsPerMonth > 0 ? `até ${plan.maxInboundDocsPerMonth} documentos/mês` : "não inclusa"}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{plan.maxInvoicesPerMonth} notas no total da conta</p>
+                        <p className="text-xs text-muted-foreground">Entrada: {plan.maxInboundDocsPerMonth > 0 ? `${plan.maxInboundDocsPerMonth} documentos no total` : "não inclusa"}</p>
                       </div>
                     ) : (
                       <div>

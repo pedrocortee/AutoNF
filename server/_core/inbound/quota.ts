@@ -1,10 +1,12 @@
 /**
- * Entrada module access: included by plan (monthly upload quota). The account owner (admin)
- * has no limit, for demos. SEFAZ capture is not counted — XML costs nothing to read.
+ * Entrada module access: included by plan (upload quota — per account on the free plan,
+ * monthly on paid plans). The account owner (admin) has no limit, for demos. SEFAZ capture
+ * is not counted — XML costs nothing to read.
  */
 
 import { getUserSubscription } from "../../db";
-import { countUploadsThisMonth } from "../../inboundDb";
+import { countUploadsThisMonth, countUploadsTotal } from "../../inboundDb";
+import { limitPeriod, type LimitPeriod } from "../planLimits";
 
 export interface InboundAllowance {
   allowed: boolean;
@@ -13,30 +15,32 @@ export interface InboundAllowance {
   limit: number | null;
   remaining: number | null;
   planName: string | null;
+  period: LimitPeriod;
   reason: string | null;
 }
 
-export function computeAllowance(
-  user: { role?: string | null },
-  plan: { name: string; maxInboundDocsPerMonth: number } | null,
-  used: number
-): InboundAllowance {
-  if (user.role === "admin") return { allowed: true, used, limit: null, remaining: null, planName: plan?.name ?? null, reason: null };
-  if (!plan) return { allowed: false, used, limit: 0, remaining: 0, planName: null, reason: "Assine um plano para enviar documentos à Entrada." };
+type PlanQuota = { name: string; pricePerMonth: number; maxInboundDocsPerMonth: number };
+
+export function computeAllowance(user: { role?: string | null }, plan: PlanQuota | null, used: number): InboundAllowance {
+  const period = plan ? limitPeriod(plan) : "month";
+  const base = { used, planName: plan?.name ?? null, period };
+  if (user.role === "admin") return { ...base, allowed: true, limit: null, remaining: null, reason: null };
+  if (!plan) return { ...base, allowed: false, limit: 0, remaining: 0, reason: "Assine um plano para enviar documentos à Entrada." };
   const limit = plan.maxInboundDocsPerMonth;
-  if (limit <= 0) return { allowed: false, used, limit: 0, remaining: 0, planName: plan.name, reason: `O plano ${plan.name} não inclui a Entrada de documentos.` };
+  if (limit <= 0) return { ...base, allowed: false, limit: 0, remaining: 0, reason: `O plano ${plan.name} não inclui a Entrada de documentos.` };
   const remaining = Math.max(0, limit - used);
-  return {
-    allowed: remaining > 0,
-    used,
-    limit,
-    remaining,
-    planName: plan.name,
-    reason: remaining > 0 ? null : `Limite de ${limit} documentos/mês do plano ${plan.name} atingido.`,
-  };
+  const reason =
+    remaining > 0
+      ? null
+      : period === "account"
+        ? `Você já usou os ${limit} documentos do plano ${plan.name}. Assine um plano para continuar.`
+        : `Limite de ${limit} documentos/mês do plano ${plan.name} atingido.`;
+  return { ...base, allowed: remaining > 0, limit, remaining, reason };
 }
 
 export async function inboundAllowance(user: { id: number; role?: string | null }): Promise<InboundAllowance> {
-  const [sub, used] = await Promise.all([getUserSubscription(user.id), countUploadsThisMonth(user.id)]);
-  return computeAllowance(user, sub ? sub.plan : null, used);
+  const sub = await getUserSubscription(user.id);
+  const plan = sub ? sub.plan : null;
+  const used = plan && limitPeriod(plan) === "account" ? await countUploadsTotal(user.id) : await countUploadsThisMonth(user.id);
+  return computeAllowance(user, plan, used);
 }

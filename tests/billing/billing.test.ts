@@ -270,16 +270,33 @@ describe("manual sync and cancellation", () => {
 });
 
 describe("Entrada quota", () => {
-  const starter = { name: "Starter", maxInboundDocsPerMonth: 200 };
+  const starter = { name: "Starter", pricePerMonth: 25000, maxInboundDocsPerMonth: 200 };
+  const free = { name: "Gratuito", pricePerMonth: 0, maxInboundDocsPerMonth: 10 };
   it("requires a plan that includes the module", () => {
     expect(computeAllowance({ role: "user" }, null, 0)).toMatchObject({ allowed: false });
-    expect(computeAllowance({ role: "user" }, { name: "Básico", maxInboundDocsPerMonth: 0 }, 0).reason).toMatch(/não inclui/);
+    expect(computeAllowance({ role: "user" }, { name: "Básico", pricePerMonth: 1000, maxInboundDocsPerMonth: 0 }, 0).reason).toMatch(/não inclui/);
   });
-  it("counts the month's uploads against the plan", () => {
-    expect(computeAllowance({ role: "user" }, starter, 150)).toMatchObject({ allowed: true, remaining: 50 });
-    expect(computeAllowance({ role: "user" }, starter, 200)).toMatchObject({ allowed: false, remaining: 0 });
+  it("paid plans count the month's uploads", () => {
+    expect(computeAllowance({ role: "user" }, starter, 150)).toMatchObject({ allowed: true, remaining: 50, period: "month" });
+    expect(computeAllowance({ role: "user" }, starter, 200).reason).toMatch(/documentos\/mês/);
+  });
+  it("the free plan is a one-time allowance for the account", () => {
+    expect(computeAllowance({ role: "user" }, free, 9)).toMatchObject({ allowed: true, remaining: 1, period: "account" });
+    const used = computeAllowance({ role: "user" }, free, 10);
+    expect(used).toMatchObject({ allowed: false, period: "account" });
+    expect(used.reason).toMatch(/já usou os 10 documentos/);
   });
   it("gives the account owner unlimited access", () => {
     expect(computeAllowance({ role: "admin" }, null, 5000)).toMatchObject({ allowed: true, limit: null });
+  });
+});
+
+describe("plan limit period", () => {
+  it("free plan limits are per account, paid plans per month", async () => {
+    const { limitPeriod, emissionLimitMessage } = await import("../../server/_core/planLimits");
+    expect(limitPeriod({ pricePerMonth: 0 })).toBe("account");
+    expect(limitPeriod({ pricePerMonth: 25000 })).toBe("month");
+    expect(emissionLimitMessage({ name: "Gratuito", pricePerMonth: 0, maxInvoicesPerMonth: 3 })).toMatch(/já usou as 3 notas/);
+    expect(emissionLimitMessage({ name: "Starter", pricePerMonth: 25000, maxInvoicesPerMonth: 50 })).toMatch(/50 notas\/mês/);
   });
 });

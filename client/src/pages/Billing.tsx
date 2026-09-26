@@ -87,10 +87,11 @@ export default function Billing() {
                 <div className="space-y-1">
                   <p className="font-semibold">{subscription.plan.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    R$ {(subscription.plan.pricePerMonth / 100).toFixed(0)}/mês ·{" "}
-                    {subscription.plan.maxInvoicesPerMonth === 999999
-                      ? "Notas ilimitadas"
-                      : `até ${subscription.plan.maxInvoicesPerMonth} notas/mês`}
+                    {subscription.plan.pricePerMonth === 0
+                      ? `Grátis · ${subscription.plan.maxInvoicesPerMonth} notas no total`
+                      : `R$ ${(subscription.plan.pricePerMonth / 100).toFixed(0)}/mês · ${
+                          subscription.plan.maxInvoicesPerMonth === 999999 ? "Notas ilimitadas" : `até ${subscription.plan.maxInvoicesPerMonth} notas/mês`
+                        }`}
                   </p>
                   {subscription.renewalDate && (
                     <p className="text-xs text-muted-foreground">

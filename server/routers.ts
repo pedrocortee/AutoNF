@@ -7,6 +7,7 @@ import { BillingError, cancelPlan, checkout, syncPendingPayment } from "./_core/
 import { billingDeps } from "./billingService";
 import { getCurrentSubscription, liveAsaasSubscriptions } from "./billingDb";
 import { inboundAllowance } from "./_core/inbound/quota";
+import { emissionLimitMessage, emissionUsage, limitPeriod } from "./_core/planLimits";
 
 async function billingCall<T>(fn: () => Promise<T>): Promise<T> {
   try {
@@ -33,7 +34,6 @@ import {
   listCertificates,
   getAllPlans,
   getUserSubscription,
-  getInvoiceUsageThisMonth,
   incrementInvoiceUsage,
   listBillingInvoices,
   saveNFSeNumber,
@@ -137,9 +137,10 @@ export const appRouter = router({
           throw new TRPCError({ code: "FORBIDDEN", message: "Nenhum plano ativo" });
         }
 
-        const usage = await getInvoiceUsageThisMonth(ctx.user.id);
+        // Free plan: one-time allowance for the account; paid plans: monthly
+        const usage = await emissionUsage(ctx.user.id, subscription.plan);
         if (usage >= subscription.plan.maxInvoicesPerMonth) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "Limite de emissoes atingido" });
+          throw new TRPCError({ code: "FORBIDDEN", message: emissionLimitMessage(subscription.plan) });
         }
 
         const company = await getCompanyConfig(ctx.user.id);
@@ -431,11 +432,12 @@ export const appRouter = router({
       if (!subscription) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Sem plano ativo" });
       }
-      const usage = await getInvoiceUsageThisMonth(ctx.user.id);
+      const usage = await emissionUsage(ctx.user.id, subscription.plan);
       const limit = subscription.plan.maxInvoicesPerMonth;
       return {
         usage,
         limit,
+        period: limitPeriod(subscription.plan),
         remaining: Math.max(0, limit - usage),
         percentage: Math.min(100, Math.round((usage / limit) * 100)),
       };

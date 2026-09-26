@@ -3,9 +3,9 @@
  * Kept apart from db.ts, which is already past the project's size limit.
  */
 
-import { and, desc, eq, inArray, isNotNull, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { getDb } from "./db";
-import { billingInvoices, plans, subscriptions, type BillingInvoice, type InsertBillingInvoice, type Plan, type Subscription } from "../drizzle/schema";
+import { billingInvoices, invoiceUsage, plans, subscriptions, type BillingInvoice, type InsertBillingInvoice, type Plan, type Subscription } from "../drizzle/schema";
 
 async function db() {
   const d = await getDb();
@@ -115,4 +115,13 @@ export async function pendingCheckout(userId: number, planName: string): Promise
     .orderBy(desc(billingInvoices.id))
     .limit(1);
   return rows[0];
+}
+
+/** Notes issued since the account was created (all months). */
+export async function invoiceUsageTotal(userId: number): Promise<number> {
+  const rows = await (await db())
+    .select({ n: sql<number>`coalesce(sum(${invoiceUsage.invoiceCount}), 0)` })
+    .from(invoiceUsage)
+    .where(eq(invoiceUsage.userId, userId));
+  return Number(rows[0]?.n ?? 0);
 }

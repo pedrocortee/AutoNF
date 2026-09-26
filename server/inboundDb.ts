@@ -258,3 +258,12 @@ export async function countUploadsThisMonth(userId: number): Promise<number> {
     .where(and(eq(inboundDocuments.userId, userId), eq(inboundDocuments.source, "upload"), sql`${inboundDocuments.createdAt} >= ${start}`));
   return Number(rows[0]?.n ?? 0);
 }
+
+/** Documents the user ever uploaded — the free plan's one-time allowance. */
+export async function countUploadsTotal(userId: number): Promise<number> {
+  const rows = await (await db())
+    .select({ n: sql<number>`count(*)` })
+    .from(inboundDocuments)
+    .where(and(eq(inboundDocuments.userId, userId), eq(inboundDocuments.source, "upload")));
+  return Number(rows[0]?.n ?? 0);
+}

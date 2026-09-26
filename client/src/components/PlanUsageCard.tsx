@@ -63,7 +63,7 @@ export function PlanUsageCard() {
           <div>
             <p className="text-sm font-semibold text-foreground">{subscription.plan.name}</p>
             <p className="text-xs text-muted-foreground">
-              R$ {(subscription.plan.pricePerMonth / 100).toFixed(0)}/mês
+              {subscription.plan.pricePerMonth === 0 ? "Grátis" : `R$ ${(subscription.plan.pricePerMonth / 100).toFixed(0)}/mês`}
             </p>
           </div>
         </div>
@@ -76,7 +76,7 @@ export function PlanUsageCard() {
               / {subscription.plan.maxInvoicesPerMonth === 999999 ? "∞" : subscription.plan.maxInvoicesPerMonth}
             </span>
           </p>
-          <p className="text-[11px] text-muted-foreground">notas este mês</p>
+          <p className="text-[11px] text-muted-foreground">{usage.period === "account" ? "notas no total" : "notas este mês"}</p>
         </div>
       </div>
 
