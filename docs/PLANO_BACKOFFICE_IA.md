@@ -206,14 +206,15 @@ tests/inbound/         testes Vitest + fixtures anonimizadas (XMLs e PDFs fictí
 ```
 
 ### IA
-- **Modelos:** `claude-haiku-4-5` para classificar PDFs; `claude-sonnet-5` para extrair campos. Mandar o PDF direto (a API aceita PDF nativo), sem OCR intermediário na primeira versão.
+- **Modelo:** `claude-opus-5` por padrão, trocável pela variável `INBOUND_LLM_MODEL` (ex.: `claude-sonnet-5`, mais barato). O PDF vai direto para a API (suporte nativo a PDF), sem OCR intermediário. A classificação é feita por conteúdo, sem IA.
+- **Fallback:** se o modelo recusar um documento, a API refaz a chamada em outro modelo automaticamente (`fallbacks: "default"`).
 - **Saída estruturada** com o schema zod convertido para JSON Schema; rejeitar e mandar para revisão qualquer resposta que não valide.
-- **Custo:** registrar `llmCostMicros` por documento; meta < R$0,10 por PDF. Só PDFs passam pela IA, então o custo mensal por escritório fica pequeno frente à mensalidade.
+- **Custo:** registrar `llmCostMicros` por documento. Estimativa com `claude-opus-5` para um PDF de 1 página: ~US$0,02–0,04 (~R$0,10–0,25); medir com documentos reais e, se passar da meta, testar `claude-sonnet-5` comparando a taxa de aprovação automática. Só PDFs passam pela IA, então o custo mensal por escritório fica pequeno frente à mensalidade.
 - **Aprender com correções:** guardar as correções da revisão e usá-las como exemplos no prompt por emissor (Fase D).
 - **LGPD:** documentos vão para a API da Anthropic; incluir no contrato e na política de privacidade. Nenhum dado é usado para treinamento pela API comercial, mas o escritório precisa saber e concordar.
 
 ### Variáveis de ambiente novas
-`ANTHROPIC_API_KEY`, `SEFAZ_DFE_ENV` (homologacao|producao), `INBOUND_MAX_FILE_MB`
+`ANTHROPIC_API_KEY`, `INBOUND_LLM_MODEL`, `INBOUND_MAX_FILE_MB`, `INBOUND_MAX_UPLOAD_MB`, `INBOUND_CONCURRENCY`, `INBOUND_STORAGE_PATH` (documentadas no `.env.example`); `SEFAZ_DFE_ENV` entra na Fase C
 
 ---
 
@@ -233,16 +234,20 @@ tests/inbound/         testes Vitest + fixtures anonimizadas (XMLs e PDFs fictí
 
 ### Fase A — Demo vendável (28/09–02/10) · 4 dias
 **Objetivo:** mostrar ao vivo o documento entrando e saindo pronto para importar.
-| # | Tarefa | Esforço |
-|---|---|---|
-| A.1 | Tabelas `inboundDocuments` e `inboundDocumentEvents` + migração | 2h |
-| A.2 | `ingest.ts` + upload em lote (arquivos e ZIP) + fila `inbound-docs` | 4h |
-| A.3 | `xml/nfeParser.ts` + `xml/nfseParser.ts` com testes | 4h |
-| A.4 | `schemas.ts` + `llmExtractor.ts` para NFS-e PDF e boleto | 6h |
-| A.5 | `validators.ts` + `confidence.ts` com testes | 4h |
-| A.6 | Telas `Inbox.tsx` e `DocumentReview.tsx` | 6h |
-| A.7 | Exportação CSV/XLSX genérica | 2h |
-| A.8 | Roteiro de demo de 5 minutos + vídeo gravado de 2 minutos | 2h |
+| # | Tarefa | Esforço | Status (26/09) |
+|---|---|---|---|
+| A.1 | Tabelas `inboundDocuments` e `inboundDocumentEvents` + migração | 2h | ✅ criadas no banco local; falta aplicar em produção |
+| A.2 | `ingest.ts` + upload em lote (arquivos e ZIP) + fila `inbound-docs` | 4h | ✅ |
+| A.3 | `xml/nfeParser.ts` + `xml/nfseParser.ts` com testes | 4h | ✅ (CT-e vai para erro com aviso; parser na Fase C) |
+| A.4 | `schemas.ts` + `llmExtractor.ts` para NFS-e PDF e boleto | 6h | ✅ código e testes; **falta testar com PDFs reais** (precisa da chave) |
+| A.5 | `validators.ts` + `confidence.ts` com testes | 4h | ✅ inclui CNPJ alfanumérico e linha digitável |
+| A.6 | Telas `Inbox.tsx` e `DocumentReview.tsx` | 6h | ✅ build ok; **falta conferir logado no navegador** |
+| A.7 | Exportação CSV/XLSX genérica | 2h | ✅ CSV (abre no Excel pt-BR); XLSX não é necessário por ora |
+| A.8 | Roteiro de demo de 5 minutos + vídeo gravado de 2 minutos | 2h | ⏳ depois do teste com PDFs reais |
+
+**Verificado em 26/09:** 402 testes passando (359 antigos + 43 novos); teste de ponta a ponta no banco local
+(NF-e aprovada sozinha, NF-e de outro CNPJ em revisão, cópia descartada como duplicada, extensão inválida
+rejeitada, CSV correto); servidor sobe e as rotas novas exigem login.
 
 **Pronto quando:** subir 15 documentos misturados → os XMLs são aprovados sozinhos, os PDFs são extraídos, 1 boleto com linha digitável errada cai na revisão, e a planilha exportada abre certinha.
 
@@ -399,5 +404,12 @@ reuniões marcadas vale mais que uma funcionalidade perfeita sem ninguém para v
 
 ## 12. Próxima ação
 
-**Fase 0.1:** revisar as 14 alterações não commitadas na `main`, commitar, dar push e criar a
-branch `feat/entrada-ia`. Depois disso, a Fase A começa pela migração das tabelas de documentos.
+**Fase 0 e quase toda a Fase A feitas** (branch `feat/entrada-ia`, commits locais — o push depende de
+reautenticar o GitHub nesta máquina). Para fechar a Fase A:
+
+1. Configurar `ANTHROPIC_API_KEY` no `.env` e subir 5 a 10 PDFs reais (NFS-e de prefeituras diferentes e boletos)
+2. Abrir `/entrada` logado e fazer o fluxo completo: upload → revisão → aprovação → exportação
+3. Aplicar as tabelas no banco de produção (`npm run db:push`, conferindo o que ele vai alterar antes de confirmar)
+4. Gravar o vídeo de 2 minutos da demo (A.8)
+
+Depois disso, Fase B (multi-empresa).
