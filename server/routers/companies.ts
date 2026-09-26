@@ -13,6 +13,19 @@ import {
 import { isValidDocument } from "../_core/inbound/checksums";
 import { revalidateCompanyDocuments } from "../_core/inbound/revalidate";
 import { cleanDocument, parseCompanyLine } from "../_core/inbound/companyImport";
+import { encryptData } from "../_core/crypto";
+import { readA1Certificate } from "../_core/sefaz/certificate";
+import { runCompanySync, sefazEnv } from "../_core/sefaz/dfeRunner";
+import { certificateStatusByCompany, deleteCompanyCertificate, saveCompanyCertificate, syncStateByCompany } from "../dfeDb";
+
+/** IBGE state codes accepted as cUFAutor */
+const UF_CODES = new Set([11, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 25, 26, 27, 28, 29, 31, 32, 33, 35, 41, 42, 43, 50, 51, 52, 53]);
+
+async function ownedCompany(id: number, userId: number) {
+  const company = await getClientCompany(id, userId);
+  if (!company) throw new TRPCError({ code: "NOT_FOUND", message: "Empresa não encontrada" });
+  return company;
+}
 
 const documentInput = z
   .string()
@@ -30,14 +43,28 @@ export const companiesRouter = router({
   list: protectedProcedure
     .input(z.object({ includeInactive: z.boolean().default(false) }).optional())
     .query(async ({ ctx, input }) => {
-      const [companies, pending] = await Promise.all([
+      const [companies, pending, certs, syncs] = await Promise.all([
         listClientCompanies(ctx.user.id, { includeInactive: input?.includeInactive }),
         pendingByCompany(ctx.user.id),
+        certificateStatusByCompany(ctx.user.id),
+        syncStateByCompany(ctx.user.id),
       ]);
       const empty = { revisao: 0, aprovado: 0, total: 0 };
       return {
-        companies: companies.map((c) => ({ ...c, pending: pending.get(c.id) ?? empty })),
+        companies: companies.map((c) => {
+          const cert = certs.get(c.id);
+          const sync = syncs.get(c.id);
+          return {
+            ...c,
+            pending: pending.get(c.id) ?? empty,
+            certificate: cert ? { validUntil: cert.validUntil, holderDocument: cert.holderDocument } : null,
+            capture: sync
+              ? { lastSyncAt: sync.lastSyncAt, nextAllowedAt: sync.nextAllowedAt, statusCode: sync.lastStatusCode, statusMessage: sync.lastStatusMessage, lastReceived: sync.lastReceived }
+              : null,
+          };
+        }),
         unassigned: pending.get(null) ?? empty,
+        captureEnv: sefazEnv(),
       };
     }),
 
@@ -65,6 +92,61 @@ export const companiesRouter = router({
       await updateClientCompany(id, ctx.user.id, { ...patch, externalCode: patch.externalCode === "" ? null : patch.externalCode });
       return { ok: true };
     }),
+
+  /** A1 certificate (PFX in base64) used to capture the company's NF-e from SEFAZ. */
+  uploadCertificate: protectedProcedure
+    .input(
+      z.object({
+        companyId: z.number().int(),
+        pfxBase64: z.string().min(100).max(90_000),
+        password: z.string().min(1).max(200),
+        ufCode: z.number().int().refine((n) => UF_CODES.has(n), "UF inválida"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const company = await ownedCompany(input.companyId, ctx.user.id);
+      let a1;
+      try {
+        a1 = readA1Certificate(input.pfxBase64, input.password);
+      } catch (err) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: (err as Error).message });
+      }
+      const now = new Date();
+      if (a1.validUntil < now) throw new TRPCError({ code: "BAD_REQUEST", message: `Certificado vencido em ${a1.validUntil.toLocaleDateString("pt-BR")}` });
+      // SEFAZ only answers for the certificate's own CNPJ root (first 8 digits)
+      if (a1.holderDocument && a1.holderDocument.slice(0, 8) !== company.document.slice(0, 8)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `O certificado é de outro CNPJ (${a1.holderDocument})` });
+      }
+      await saveCompanyCertificate({
+        userId: ctx.user.id,
+        companyId: company.id,
+        encryptedPfx: encryptData(input.pfxBase64.replace(/^data:[^,]*,/, "")),
+        encryptedPassword: encryptData(input.password),
+        ufCode: input.ufCode,
+        subject: a1.subject.slice(0, 500),
+        issuer: a1.issuer.slice(0, 500),
+        holderDocument: a1.holderDocument,
+        validFrom: a1.validFrom,
+        validUntil: a1.validUntil,
+        thumbprint: a1.thumbprint,
+      });
+      return { validUntil: a1.validUntil, holderDocument: a1.holderDocument, subject: a1.subject };
+    }),
+
+  removeCertificate: protectedProcedure.input(z.object({ companyId: z.number().int() })).mutation(async ({ ctx, input }) => {
+    await ownedCompany(input.companyId, ctx.user.id);
+    await deleteCompanyCertificate(input.companyId, ctx.user.id);
+    return { ok: true };
+  }),
+
+  syncNow: protectedProcedure.input(z.object({ companyId: z.number().int() })).mutation(async ({ ctx, input }) => {
+    await ownedCompany(input.companyId, ctx.user.id);
+    try {
+      return await runCompanySync(ctx.user.id, input.companyId, { force: true });
+    } catch (err) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: (err as Error).message });
+    }
+  }),
 
   /** One company per line: "CNPJ;Razão social;Código" (separator ; , or tab; código optional). */
   bulkImport: protectedProcedure

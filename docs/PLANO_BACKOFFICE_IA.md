@@ -288,18 +288,32 @@ com a captura, que é onde ele é usado.
 e 2 aprovados sozinhos → ZIP com notas de 3 destinatários roteado certo → regra criada pela revisão →
 exportação filtrada com empresa, código, conta, centro de custo e histórico).
 
-### Fase C — Captura automática SEFAZ (10–16/10) · 4 dias
+### Fase C — Captura automática SEFAZ (10–16/10) · 4 dias — núcleo feito em 26/09
 **Objetivo:** as notas aparecem sozinhas. É o maior diferencial de venda.
-| # | Tarefa | Esforço |
-|---|---|---|
-| C.0 | Certificado A1 por empresa atendida (upload na tela Empresas; reusa `crypto.ts`, `certificateValidator.ts`, `certExpiryJob.ts`) | 4h |
-| C.1 | `dfeDistribution.ts`: consulta `NFeDistribuicaoDFe` por NSU com mTLS usando o A1 da empresa | 1d |
-| C.2 | Tratar resumos (`resNFe`) e XML completo (`procNFe`); descompactar `docZip` (base64 + gzip) | 4h |
-| C.3 | `manifestacao.ts`: evento Ciência da Operação (210210) para liberar o XML completo | 4h |
-| C.4 | Job agendado `dfe-sync` por empresa, respeitando `nextAllowedAt` | 4h |
-| C.5 | Mesmo fluxo para CT-e (`CTeDistribuicaoDFe`) | 4h |
-| C.6 | Investigar a distribuição de documentos do ADN (NFS-e Nacional) para contribuintes | 4h (pesquisa) |
-| C.7 | Tela `Companies.tsx` com status da captura e do certificado | 2h |
+| # | Tarefa | Esforço | Status (26/09) |
+|---|---|---|---|
+| C.0 | Certificado A1 por empresa atendida (upload na tela Empresas, criptografado, confere se o CNPJ do certificado é o da empresa) | 4h | ✅ `clientCompanyCertificates` + `sefaz/certificate.ts` (abre PFX com criptografia antiga via node-forge) |
+| C.1 | `dfeDistribution.ts`: consulta `NFeDistribuicaoDFe` por NSU com mTLS usando o A1 da empresa | 1d | ✅ testado contra servidor mTLS local; **falta validar na SEFAZ real** |
+| C.2 | Tratar resumos (`resNFe`) e XML completo (`procNFe`); descompactar `docZip` (base64 + gzip) | 4h | ✅ XML completo entra no pipeline (`source = sefaz_dfe`); resumos guardados em `dfeSummaries` |
+| C.3 | `manifestacao.ts`: evento Ciência da Operação (210210) para liberar o XML completo | 4h | ⏳ depende de testar a assinatura do evento na SEFAZ real |
+| C.4 | Job agendado `dfe-sync` por empresa, respeitando `nextAllowedAt` | 4h | ✅ a cada 15 min, 1 empresa por vez; pausa de 1h após 137, 656, erro ou fim da fila |
+| C.5 | Mesmo fluxo para CT-e (`CTeDistribuicaoDFe`) | 4h | ⏳ |
+| C.6 | Investigar a distribuição de documentos do ADN (NFS-e Nacional) para contribuintes | 4h (pesquisa) | ⏳ |
+| C.7 | Tela `Companies.tsx` com status da captura e do certificado | 2h | ✅ coluna "Captura SEFAZ" + botão de consulta (só antecipa após falha local, nunca após resposta da SEFAZ) |
+
+**Verificado em 26/09:** 427 testes (14 novos); ponta a ponta no banco local contra uma SEFAZ simulada com mTLS:
+1 chamada → NF-e completa ingerida e processada, resumo guardado, cursor NSU salvo; chamadas seguintes seguradas pela pausa.
+
+**Variáveis novas:** `SEFAZ_DFE_ENV` (`homologacao` | `producao`; vazio = captura desligada), `SEFAZ_CA_BUNDLE`
+(PEM com a cadeia ICP-Brasil — os servidores da SEFAZ usam certificado TLS ICP-Brasil, fora da lista padrão do Node),
+`SEFAZ_DFE_URL` (só desenvolvimento, SEFAZ simulada).
+
+**Certificado para homologação (pesquisa de 26/09):** não existe certificado gratuito aceito pela SEFAZ. Mesmo em
+homologação ela exige A1 emitido por AC credenciada na ICP-Brasil, com o CNPJ consultado; autoassinados (kits de teste
+na internet, os do NFePHP, os que os testes geram) só servem para desenvolvimento local. Caminho: comprar um **e-CNPJ A1**
+(~R$150–250/ano) do CNPJ que vai emitir a nota do setup (decisão pendente na seção 11) — serve para homologação, para a
+emissão de NFS-e e para a demo. Para ter notas na homologação: emitir NF-e de teste nesse ambiente com o CNPJ como
+destinatário ou em `autXML` (verificar credenciamento de homologação na SEFAZ-RS/SVRS).
 
 **Cuidados obrigatórios:**
 - **Consumo indevido:** a SEFAZ bloqueia quem consulta demais. Quando a resposta indicar que não há documentos novos, esperar pelo menos 1 hora antes da próxima consulta para aquele CNPJ. Guardar `lastStatusCode` e respeitar sempre.
@@ -422,7 +436,7 @@ reuniões marcadas vale mais que uma funcionalidade perfeita sem ninguém para v
 - [ ] **Cidade/região** da primeira lista de escritórios
 - [ ] **Horas por semana** disponíveis e se existe sócio para a parte comercial
 - [ ] **CNPJ** para emitir nota do setup (ME no Simples; o MEI não cobre esta atividade)
-- [ ] **Certificado A1 de teste** para homologação da Fase C
+- [ ] **Certificado A1 de teste** para homologação da Fase C — *não há gratuito aceito pela SEFAZ; comprar e-CNPJ A1 do CNPJ da empresa (ver Fase C)*
 - [ ] **Chave da API da Anthropic** para a Fase A
 
 ---

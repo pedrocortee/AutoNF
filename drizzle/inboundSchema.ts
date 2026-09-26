@@ -144,3 +144,88 @@ export const mappingRules = mysqlTable(
 
 export type MappingRule = typeof mappingRules.$inferSelect;
 export type InsertMappingRule = typeof mappingRules.$inferInsert;
+
+/**
+ * A1 certificate of a client company, used to capture its documents from SEFAZ (Distribuição DF-e).
+ * PFX and password are stored encrypted (AES-256-GCM, see _core/crypto.ts). One per company.
+ */
+export const clientCompanyCertificates = mysqlTable(
+  "clientCompanyCertificates",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    companyId: int("companyId").notNull(),
+    encryptedPfx: text("encryptedPfx").notNull(),
+    encryptedPassword: text("encryptedPassword").notNull(),
+    /** IBGE code of the company's state (cUFAutor), e.g. 43 = RS */
+    ufCode: int("ufCode").notNull(),
+    subject: varchar("subject", { length: 500 }).notNull(),
+    issuer: varchar("issuer", { length: 500 }).notNull(),
+    /** CNPJ/CPF found in the certificate, if any */
+    holderDocument: varchar("holderDocument", { length: 14 }),
+    validFrom: timestamp("validFrom").notNull(),
+    validUntil: timestamp("validUntil").notNull(),
+    thumbprint: varchar("thumbprint", { length: 64 }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (t) => ({
+    companyIdx: uniqueIndex("client_company_certs_company_idx").on(t.companyId),
+  })
+);
+
+export type ClientCompanyCertificate = typeof clientCompanyCertificates.$inferSelect;
+
+/** Progress of the SEFAZ capture per company and service (NSU cursor + throttling). */
+export const dfeSyncState = mysqlTable(
+  "dfeSyncState",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    companyId: int("companyId").notNull(),
+    service: mysqlEnum("service", ["nfe", "cte"]).notNull(),
+    lastNsu: varchar("lastNsu", { length: 15 }).default("000000000000000").notNull(),
+    maxNsu: varchar("maxNsu", { length: 15 }).default("000000000000000").notNull(),
+    lastSyncAt: timestamp("lastSyncAt"),
+    /** SEFAZ blocks callers that query too often; never call before this */
+    nextAllowedAt: timestamp("nextAllowedAt"),
+    lastStatusCode: varchar("lastStatusCode", { length: 10 }),
+    lastStatusMessage: varchar("lastStatusMessage", { length: 500 }),
+    /** Documents received in the last successful run */
+    lastReceived: int("lastReceived").default(0).notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (t) => ({
+    companyServiceIdx: uniqueIndex("dfe_sync_company_service_idx").on(t.companyId, t.service),
+  })
+);
+
+export type DfeSyncState = typeof dfeSyncState.$inferSelect;
+
+/**
+ * NF-e summaries (resNFe): SEFAZ only releases the full XML after the recipient acknowledges
+ * the operation (evento 210210, Ciência da Operação). Kept here until the full XML arrives.
+ */
+export const dfeSummaries = mysqlTable(
+  "dfeSummaries",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    companyId: int("companyId").notNull(),
+    accessKey: varchar("accessKey", { length: 44 }).notNull(),
+    nsu: varchar("nsu", { length: 15 }).notNull(),
+    issuerDocument: varchar("issuerDocument", { length: 14 }),
+    issuerName: varchar("issuerName", { length: 255 }),
+    issueDate: varchar("issueDate", { length: 10 }),
+    totalCents: bigint("totalCents", { mode: "number" }),
+    /** Set when the full XML (procNFe) was received and ingested */
+    fullXmlAt: timestamp("fullXmlAt"),
+    manifestedAt: timestamp("manifestedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (t) => ({
+    companyKeyIdx: uniqueIndex("dfe_summaries_company_key_idx").on(t.companyId, t.accessKey),
+  })
+);
+
+export type DfeSummary = typeof dfeSummaries.$inferSelect;

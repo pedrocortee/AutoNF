@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { Building2, Plus, Upload, AlertCircle } from "lucide-react";
+import { Building2, Plus, Upload, AlertCircle, KeyRound, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -13,6 +13,18 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
 import { formatDocument } from "@/lib/inbound";
+import { CertificateDialog } from "@/components/inbound/CertificateDialog";
+
+const time = (d: string | Date) => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+
+/** One line describing the SEFAZ capture for a company. */
+function captureStatus(capture: { lastSyncAt: string | Date | null; nextAllowedAt: string | Date | null; statusCode: string | null; statusMessage: string | null } | null) {
+  if (!capture?.lastSyncAt) return { text: "Aguardando 1ª consulta", tone: "text-muted-foreground" };
+  const next = capture.nextAllowedAt ? ` · próxima ${time(capture.nextAllowedAt)}` : "";
+  if (capture.statusCode === "137" || capture.statusCode === "138") return { text: `Em dia · ${time(capture.lastSyncAt)}${next}`, tone: "text-emerald-700" };
+  if (capture.statusCode === "656") return { text: `SEFAZ pausou as consultas${next}`, tone: "text-amber-700" };
+  return { text: `Erro: ${capture.statusMessage ?? capture.statusCode}${next}`, tone: "text-destructive" };
+}
 
 function routedMessage(routed: number, approved: number) {
   if (!routed) return "";
@@ -28,6 +40,8 @@ export default function Companies() {
   const createMutation = trpc.companies.create.useMutation();
   const updateMutation = trpc.companies.update.useMutation();
   const importMutation = trpc.companies.bulkImport.useMutation();
+  const syncMutation = trpc.companies.syncNow.useMutation();
+  const [certCompany, setCertCompany] = useState<{ id: number; name: string; hasCertificate: boolean } | null>(null);
 
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({ document: "", name: "", externalCode: "" });
@@ -69,6 +83,18 @@ export default function Companies() {
     } catch (err) {
       toast.error((err as Error).message);
     }
+  }
+
+  async function handleSync(companyId: number) {
+    try {
+      const r = await syncMutation.mutateAsync({ companyId });
+      if (!r.ran) toast.info(r.statusMessage ?? "Consulta adiada para não bloquear na SEFAZ.");
+      else if (r.statusCode === "137" || r.statusCode === "138") toast.success(`SEFAZ consultada: ${r.received} nota(s) nova(s)${r.summaries ? `, ${r.summaries} resumo(s) aguardando ciência` : ""}.`);
+      else toast.warning(`SEFAZ respondeu ${r.statusCode}: ${r.statusMessage}`);
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+    refresh();
   }
 
   const data = listQuery.data;
@@ -113,6 +139,7 @@ export default function Companies() {
                 <TableHead>Empresa</TableHead>
                 <TableHead>CNPJ/CPF</TableHead>
                 <TableHead>Código</TableHead>
+                <TableHead>Captura SEFAZ</TableHead>
                 <TableHead className="text-right">Revisar</TableHead>
                 <TableHead className="text-right">Aprovados</TableHead>
                 <TableHead className="text-right">Documentos</TableHead>
@@ -129,6 +156,27 @@ export default function Companies() {
                   </TableCell>
                   <TableCell className="tabular-nums text-muted-foreground">{formatDocument(c.document)}</TableCell>
                   <TableCell className="text-muted-foreground">{c.externalCode ?? "—"}</TableCell>
+                  <TableCell>
+                    {c.certificate ? (
+                      <div className="flex items-center gap-1.5">
+                        <div className="text-xs leading-tight">
+                          <button className="text-foreground hover:underline" onClick={() => setCertCompany({ id: c.id, name: c.name, hasCertificate: true })}>
+                            A1 até {new Date(c.certificate.validUntil).toLocaleDateString("pt-BR")}
+                          </button>
+                          <div className={captureStatus(c.capture).tone}>{data?.captureEnv ? captureStatus(c.capture).text : "Captura desligada no servidor"}</div>
+                        </div>
+                        {data?.captureEnv && (
+                          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Consultar SEFAZ agora" disabled={syncMutation.isPending} onClick={() => handleSync(c.id)}>
+                            <RefreshCw className={`w-3.5 h-3.5 ${syncMutation.isPending && syncMutation.variables?.companyId === c.id ? "animate-spin" : ""}`} />
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => setCertCompany({ id: c.id, name: c.name, hasCertificate: false })}>
+                        <KeyRound className="w-3.5 h-3.5" />Enviar certificado
+                      </Button>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{c.pending.revisao || "—"}</TableCell>
                   <TableCell className="text-right tabular-nums">{c.pending.aprovado || "—"}</TableCell>
                   <TableCell className="text-right tabular-nums">{c.pending.total || "—"}</TableCell>
@@ -146,7 +194,7 @@ export default function Companies() {
               ))}
               {data && data.companies.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-12 text-center">
+                  <TableCell colSpan={8} className="py-12 text-center">
                     <Building2 className="w-6 h-6 mx-auto text-muted-foreground mb-2" />
                     <p className="text-sm text-foreground font-medium">Nenhuma empresa cadastrada</p>
                     <p className="text-sm text-muted-foreground">Adicione uma a uma ou importe a lista de clientes do escritório.</p>
@@ -161,6 +209,8 @@ export default function Companies() {
           Mostrar empresas desativadas
         </label>
       </div>
+
+      <CertificateDialog company={certCompany} onClose={() => setCertCompany(null)} onSaved={refresh} />
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="sm:max-w-md">

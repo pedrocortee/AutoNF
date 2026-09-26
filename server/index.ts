@@ -9,6 +9,7 @@ import { createContext } from "./_core/trpc";
 import { ENV } from "./_core/env";
 import { startNFSeWorker } from "./_core/worker";
 import { startInboundWorker } from "./_core/inbound/queue";
+import { startDfeSync } from "./_core/sefaz/dfeRunner";
 import { inboundRoutes } from "./inboundRoutes";
 import {
   upsertUser,
@@ -159,6 +160,7 @@ app.listen(ENV.port, () => {
 // Start the BullMQ worker in the same process (single-service deploy)
 startNFSeWorker();
 startInboundWorker();
+startDfeSync().catch((err) => console.error("[DfeSync] could not start:", err));
 
 // Auto-register Asaas webhook on startup (skipped when PUBLIC_URL is localhost)
 ensureAsaasWebhook(ENV.publicUrl);
