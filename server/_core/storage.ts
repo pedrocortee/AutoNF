@@ -9,13 +9,17 @@ const USE_R2 = !!(
   process.env.R2_BUCKET_NAME
 );
 
+// Any S3-compatible store (Cloudflare R2, Supabase Storage). Supabase needs its project region
+// in R2_REGION and, with session-token auth, the service key in R2_SESSION_TOKEN.
 const s3 = USE_R2
   ? new S3Client({
-      region: "auto",
+      region: process.env.R2_REGION || "auto",
       endpoint: process.env.R2_ENDPOINT,
+      forcePathStyle: true,
       credentials: {
         accessKeyId: process.env.R2_ACCESS_KEY_ID!,
         secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+        sessionToken: process.env.R2_SESSION_TOKEN || undefined,
       },
     })
   : null;
