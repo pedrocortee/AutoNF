@@ -1,9 +1,11 @@
 # AutoNF Entrada — Plano de Execução (Back-office com IA)
 
-> **Criado em:** 26/09/2026 · **Horizonte:** 30 dias (até 26/10/2026) + roadmap de 90 dias
+> **Criado em:** 26/09/2026 · **Última atualização:** 26/09/2026 (noite) · **Horizonte:** 30 dias (até 26/10/2026) + roadmap de 90 dias
 > **Relação com [AUTONF_PLANO.md](AUTONF_PLANO.md):** este plano **reordena** as prioridades do AutoNF.
 > A emissão de NFS-e (Fases 1–16) vira base técnica e módulo extra; o foco comercial passa a ser
 > o módulo de **entrada**: capturar, ler, validar e lançar documentos para escritórios de contabilidade.
+>
+> **Para retomar:** leia a seção 12 (Próxima ação) — tem tudo que ficou pendente da última sessão.
 
 ---
 
@@ -115,6 +117,33 @@ Exemplo: 2.500 docs × 3 min = 125 h/mês × R$35/h = R$4.375/mês
 | G3 | Nenhuma integração com IA | Leitura de PDFs | novo |
 | G4 | Nenhuma exportação para sistema contábil | É o que o escritório usa no dia a dia | novo |
 | G5 | `routers.ts` e `db.ts` já passam de 800 linhas | Regra do projeto: arquivos < 500 linhas | separar por domínio |
+
+---
+
+## 4-bis. Infraestrutura em produção (feito em 26/09, à noite)
+
+O app roda 100% na nuvem, sem depender da máquina local, com custo **R$0/mês**:
+
+| Peça | Onde | Plano | URL / referência |
+|---|---|---|---|
+| App (site + fila + captura SEFAZ, 1 processo) | Render, serviço `autonf-web` | Gratuito | https://autonf-web.onrender.com |
+| Redis (fila BullMQ) | Render, `autonf-redis` (Key Value) | Gratuito, só em memória | — |
+| Banco de dados | TiDB Cloud, cluster `autonf`, São Paulo (MySQL-compatível) | Starter (gratuito) | — |
+| Arquivos (XML/PDF da Entrada) | Supabase Storage, projeto `autonf`, bucket privado `autonf-docs` | Gratuito | — |
+| Ping para não dormir | GitHub Actions, `.github/workflows/keep-alive.yml` na `main` | Gratuito (repo público) | a cada 10 min, chama `/health` |
+| Deploy | Automático a cada push na branch `feat/entrada-ia` | — | Render CLI instalado e logado nesta máquina |
+
+**Limitações do plano gratuito a ter em mente:**
+- O Render dorme sem tráfego por 15 min — o ping do GitHub Actions cobre isso, mas se o Actions parar (ex.: 60 dias sem commit num repo público), o app volta a dormir.
+- O Redis é só em memória: um reinício perde a fila. Mitigado — o servidor reenfileira ao subir qualquer documento parado em "recebido"/"processando" (`server/index.ts`).
+- O TiDB Starter e o Supabase gratuito têm limites de uso generosos para o estágio atual, mas valem revisão se o volume crescer.
+- **Repositório GitHub é público** (`github.com/pedrocortee/AutoNF`) — decisão pendente na seção 11 sobre torná-lo privado.
+
+**Credenciais:** todas as variáveis (banco, Redis, storage, Asaas, Clerk, Anthropic) estão só no painel do Render — nunca no `.env` local nem no código. O `.env` local aponta para `localhost` (MySQL/Redis locais, que foram desligados); para desenvolver contra a nuvem, trocar `DATABASE_URL`/`REDIS_URL` pelas do Render.
+
+**Cobrança (Asaas) — corrigida nesta sessão:** o webhook exige um token secreto (`ASAAS_WEBHOOK_TOKEN`, só no Render); a URL de produção da API estava errada (404) e foi corrigida; um plano pago só ativa com pagamento confirmado; trocar de plano cancela a assinatura anterior no Asaas; atraso suspende o acesso. Testado de ponta a ponta no sandbox (compra, upgrade, atraso, "já paguei", cancelamento) — ver commits `bb602db`, `4351f93`, `11d1685`.
+
+**Plano Gratuito — corrigido nesta sessão:** os limites (3 notas, 10 documentos na Entrada) agora são uma franquia única **por conta**, não mensal. Os planos pagos continuam mensais.
 
 ---
 
@@ -435,20 +464,56 @@ reuniões marcadas vale mais que uma funcionalidade perfeita sem ninguém para v
 - [ ] **Marca:** vender como "AutoNF", "Decisium Data" ou produto novo? *(Sugestão: empresa Decisium Data, produto AutoNF.)*
 - [ ] **Cidade/região** da primeira lista de escritórios
 - [ ] **Horas por semana** disponíveis e se existe sócio para a parte comercial
-- [ ] **CNPJ** para emitir nota do setup (ME no Simples; o MEI não cobre esta atividade)
-- [ ] **Certificado A1 de teste** para homologação da Fase C — *não há gratuito aceito pela SEFAZ; comprar e-CNPJ A1 do CNPJ da empresa (ver Fase C)*
-- [ ] **Chave da API da Anthropic** para a Fase A
+- [ ] **CNPJ** para emitir nota do setup (ME no Simples; o MEI não cobre esta atividade) — *destrava também a compra do e-CNPJ A1 abaixo*
+- [ ] **Certificado A1 de teste** para homologação da Fase C — *não há gratuito aceito pela SEFAZ; comprar e-CNPJ A1 (~R$150–250/ano) do CNPJ acima, ou usar o A1 de um contador parceiro com autorização por escrito*
+- [x] **Chave da API da Anthropic** — configurada em produção
+- [ ] **Repositório público ou privado?** Hoje é público no GitHub (`pedrocortee/AutoNF`) — permite o ping gratuito e ilimitado do GitHub Actions, mas expõe o código-fonte (parsers fiscais, regras, etc.). Trocar para privado é possível a qualquer momento; o ping passaria a usar a cota de 2.000 min/mês grátis (sobra folga).
+- [ ] **Cota do plano Gratuito na Entrada:** hoje 10 documentos por conta (decidido nesta sessão, ver seção 4-bis). Confirmar se fica assim ou baixa para 5 — é uma linha no banco (`plans.maxInboundDocsPerMonth`), as telas se ajustam sozinhas.
+- [ ] **Emissão de nota para o admin (você):** você já usou as 3 notas do Gratuito em maio/2026 e ficaria bloqueado se tentasse emitir de novo. Confirmar se quer o admin sem limite de emissão também (hoje só a Entrada é ilimitada para admin).
 
 ---
 
 ## 12. Próxima ação
 
-**Fase 0 e quase toda a Fase A feitas** (branch `feat/entrada-ia`, commits locais — o push depende de
-reautenticar o GitHub nesta máquina). Para fechar a Fase A:
+**Onde as coisas estão:** Fases 0, A, B e o núcleo da C estão feitas e **em produção** (ver seção 4-bis).
+451 testes passando. Branch `feat/entrada-ia` no ar, GitHub conectado, deploy automático a cada push.
+O que falta pra fechar os 30 dias é sobretudo **comercial** (a trilha da seção 7 ainda não começou) e
+alguns itens técnicos que dependem de decisões suas.
 
-1. Testar com documentos **reais** de um cliente (os testes usaram documentos fictícios gerados com layout realista)
-2. Aplicar as tabelas no banco de produção (`npm run db:push`, conferindo o que ele vai alterar antes de confirmar)
-3. Gravar o vídeo de 2 minutos da demo (A.8)
-4. Reautenticar o GitHub e enviar a branch
+### Ao retomar, nesta ordem:
 
-Depois disso, Fase B (multi-empresa).
+1. **Alinhar a `main` local com o GitHub.** Sua `main` local tem 7 commits antigos que o GitHub não tem
+   (plano gratuito, correções do Asaas/Clerk); a `main` do GitHub tem 1 commit que a sua local não tem
+   (o workflow do ping). No terminal:
+   ```
+   git checkout main
+   git pull --rebase origin main
+   git checkout feat/entrada-ia
+   ```
+   Depois, decida se quer subir os 7 commits antigos para o GitHub (`git push origin main`) — eles já
+   estão testados, é a tarefa 0.1 do plano original.
+
+2. **Decidir o CNPJ do setup** (seção 11) — destrava a compra do e-CNPJ A1, que por sua vez destrava:
+   - Validar a captura SEFAZ (C.1) na SEFAZ real de homologação, não só contra o simulador
+   - A manifestação de Ciência da Operação (C.3)
+   - Testar a emissão de NFS-e de verdade (hoje as chaves do Clerk e o fluxo já funcionam, falta a nota real)
+
+3. **Gravar o vídeo de demo de 2 minutos (A.8)** — é o único item da Fase A que falta, e o app já está
+   estável em produção para gravar direto de lá (https://autonf-web.onrender.com) em vez de local.
+
+4. **Retomar a trilha comercial (seção 7, Semana 1)** — nada disso foi iniciado ainda:
+   - Lista de 60 escritórios da região
+   - 10 conversas de descoberta na rede pessoal
+   - Roteiro do diagnóstico pago + contrato modelo
+   - Seção "Para escritórios de contabilidade" na landing, com o vídeo da demo
+
+5. **Itens técnicos menores, quando sobrar tempo:**
+   - Repositório público vs. privado (seção 11)
+   - Confirmar a cota do Gratuito na Entrada (10 ou 5 documentos — seção 11)
+   - CT-e (C.5) e pesquisa da NFS-e Nacional/ADN (C.6) — só depois da SEFAZ real validada
+   - Testar a Entrada com documentos reais de um cliente (os testes de hoje usam fixtures fictícias)
+   - MCP do `ruflo` não conectou nesta sessão (timeout) — reconectar com `/mcp` se for usá-lo
+
+### O que NÃO precisa mais de atenção (resolvido)
+Push para o GitHub, deploy, banco de produção, storage dos arquivos, webhook do Asaas, plano gratuito
+por conta — tudo isso foi feito e verificado nesta sessão (seção 4-bis).
