@@ -1,5 +1,6 @@
-const ASAAS_SANDBOX_URL = "https://sandbox.asaas.com/api/v3";
-const ASAAS_PROD_URL = "https://api.asaas.com/api/v3";
+import crypto from "crypto";
+const ASAAS_SANDBOX_URL = "https://api-sandbox.asaas.com/v3";
+const ASAAS_PROD_URL = "https://api.asaas.com/v3";
 
 function getBaseUrl(): string {
   return process.env.ASAAS_ENV === "production" ? ASAAS_PROD_URL : ASAAS_SANDBOX_URL;
@@ -146,6 +147,20 @@ export async function listAsaasPayments(params: {
 }
 
 /**
+ * Checkout page of a subscription: Asaas does not return a link on the subscription itself,
+ * only on its charges (the first one is created right away, sometimes a moment later).
+ */
+export async function firstPaymentUrl(subscriptionId: string, attempts = 4): Promise<string | null> {
+  for (let i = 0; i < attempts; i++) {
+    const { data } = await listAsaasPayments({ subscription: subscriptionId, limit: 10 });
+    const open = data.find((p) => p.status === "PENDING" || p.status === "OVERDUE") ?? data[0];
+    if (open?.invoiceUrl) return open.invoiceUrl;
+    await new Promise((r) => setTimeout(r, 750));
+  }
+  return null;
+}
+
+/**
  * Get payment URL for a specific payment
  */
 export async function getAsaasPaymentLink(paymentId: string): Promise<string | undefined> {
@@ -158,6 +173,23 @@ export async function getAsaasPaymentLink(paymentId: string): Promise<string | u
  */
 export function isAsaasConfigured(): boolean {
   return !!process.env.ASAAS_API_KEY;
+}
+
+/**
+ * Shared secret Asaas sends in the "asaas-access-token" header of every notification
+ * (set as authToken when the webhook is registered). Without it the webhook could be forged.
+ */
+export function webhookToken(): string | null {
+  const t = process.env.ASAAS_WEBHOOK_TOKEN ?? "";
+  return t.length >= 32 ? t : null;
+}
+
+export function isValidWebhookToken(received: string | undefined): boolean {
+  const expected = webhookToken();
+  if (!expected || !received) return false;
+  const a = Buffer.from(received);
+  const b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 interface AsaasWebhookConfig {
@@ -175,6 +207,11 @@ export async function ensureAsaasWebhook(publicUrl: string): Promise<void> {
   if (!isAsaasConfigured()) return;
   if (publicUrl.includes("localhost") || publicUrl.includes("127.0.0.1")) return;
 
+  const authToken = webhookToken();
+  if (!authToken) {
+    console.error("[asaas-webhook] ASAAS_WEBHOOK_TOKEN missing or shorter than 32 chars — webhook not registered");
+    return;
+  }
   const webhookUrl = `${publicUrl}/api/webhooks/asaas`;
   const events = [
     "PAYMENT_CONFIRMED",
@@ -197,12 +234,9 @@ export async function ensureAsaasWebhook(publicUrl: string): Promise<void> {
 
     const ours = existing.data.find((w) => w.url === webhookUrl);
     if (ours) {
-      if (!ours.enabled || ours.interrupted) {
-        await asaasRequest("PUT", `/webhooks/${ours.id}`, { enabled: true, interrupted: false });
-        console.log(`[asaas-webhook] re-enabled webhook → ${webhookUrl}`);
-      } else {
-        console.log(`[asaas-webhook] webhook already active → ${webhookUrl}`);
-      }
+      // Always re-send the token (it may have been rotated) and the event list
+      await asaasRequest("PUT", `/webhooks/${ours.id}`, { enabled: true, interrupted: false, authToken, events });
+      console.log(`[asaas-webhook] webhook synced → ${webhookUrl}`);
       return;
     }
 
@@ -214,6 +248,7 @@ export async function ensureAsaasWebhook(publicUrl: string): Promise<void> {
       sendType: "NON_SEQUENTIALLY",
       enabled: true,
       interrupted: false,
+      authToken,
       events,
     });
     console.log(`[asaas-webhook] registered webhook → ${webhookUrl}`);

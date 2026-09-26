@@ -218,6 +218,8 @@ export const plans = mysqlTable("plans", {
   pricePerMonth: int("pricePerMonth").notNull(),
   /** Maximum invoices per month */
   maxInvoicesPerMonth: int("maxInvoicesPerMonth").notNull(),
+  /** Documents per month in the Entrada module (upload); 0 = module not included */
+  maxInboundDocsPerMonth: int("maxInboundDocsPerMonth").default(0).notNull(),
   /** Features included (JSON) */
   features: text("features"),
   /** Display order */
@@ -245,6 +247,8 @@ export const subscriptions = mysqlTable("subscriptions", {
   renewalDate: timestamp("renewalDate"),
   /** Cancellation date */
   cancellationDate: timestamp("cancellationDate"),
+  /** Asaas subscription that pays for this plan (null for the free plan) */
+  asaasSubscriptionId: varchar("asaasSubscriptionId", { length: 100 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

@@ -73,9 +73,12 @@ export default function Inbox() {
     navigate(value ? `/entrada?empresa=${value}` : "/entrada", { replace: true });
   }
 
+  const allowanceQuery = trpc.plans.inboundUsage.useQuery(undefined, { enabled: isAuthenticated });
+
   const refresh = () => {
     countsQuery.refetch();
     listQuery.refetch();
+    allowanceQuery.refetch();
   };
 
   async function handleExport() {
@@ -112,7 +115,21 @@ export default function Inbox() {
           </Button>
         </div>
 
-        <UploadDropzone onUploaded={refresh} />
+        {allowanceQuery.data && !allowanceQuery.data.allowed ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <span>{allowanceQuery.data.reason}</span>
+            <Button size="sm" variant="outline" onClick={() => navigate("/plans")}>Ver planos</Button>
+          </div>
+        ) : (
+          <>
+            <UploadDropzone onUploaded={refresh} />
+            {allowanceQuery.data?.limit != null && (
+              <p className="-mt-2 text-xs text-muted-foreground">
+                {allowanceQuery.data.used} de {allowanceQuery.data.limit} documentos enviados este mês no plano {allowanceQuery.data.planName}.
+              </p>
+            )}
+          </>
+        )}
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Filtrar por status">

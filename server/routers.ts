@@ -3,6 +3,19 @@ import { inboundRouter } from "./routers/inbound";
 import { companiesRouter } from "./routers/companies";
 import { rulesRouter } from "./routers/rules";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
+import { BillingError, cancelPlan, checkout, syncPendingPayment } from "./_core/billing";
+import { billingDeps } from "./billingService";
+import { getCurrentSubscription, liveAsaasSubscriptions } from "./billingDb";
+import { inboundAllowance } from "./_core/inbound/quota";
+
+async function billingCall<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (err instanceof BillingError) throw new TRPCError({ code: err.code, message: err.message });
+    throw err;
+  }
+}
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import {
@@ -20,17 +33,9 @@ import {
   listCertificates,
   getAllPlans,
   getUserSubscription,
-  createSubscription,
   getInvoiceUsageThisMonth,
   incrementInvoiceUsage,
-  getPlanByName,
-  upsertAsaasCustomer,
-  getAsaasCustomerByUserId,
-  createBillingInvoice,
   listBillingInvoices,
-  updateBillingInvoice,
-  updateSubscriptionByUserId,
-  getUserByIdFromDb,
   saveNFSeNumber,
   setInvoiceJob,
   getInvoiceByIdempotencyKey,
@@ -53,13 +58,7 @@ import { dispatchWebhookEvent } from "./_core/webhookDispatcher";
 import crypto from "crypto";
 import { nfseQueue } from "./_core/queue";
 import { getCertificatesExpiringSoon } from "./_core/certExpiryJob";
-import {
-  createAsaasCustomer,
-  createAsaasSubscription,
-  cancelAsaasSubscription,
-  listAsaasPayments,
-  isAsaasConfigured,
-} from "./_core/asaas";
+import { isAsaasConfigured } from "./_core/asaas";
 import {
   getNFSeClient,
   isWithinCancellationDeadline,
@@ -422,159 +421,52 @@ export const appRouter = router({
       return getAllPlans();
     }),
 
+    /** Current plan, including a paused one (payment overdue) so the UI can offer to pay it */
     getSubscription: protectedProcedure.query(async ({ ctx }) => {
-      return (await getUserSubscription(ctx.user.id)) ?? null;
+      return (await getCurrentSubscription(ctx.user.id)) ?? null;
     }),
 
-    subscribe: protectedProcedure
-      .input(z.object({ planName: z.string() }))
-      .mutation(async ({ ctx, input }) => {
-        const plan = await getPlanByName(input.planName);
-        if (!plan) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Plano nao encontrado" });
-        }
-
-        await createSubscription(ctx.user.id, plan.id);
-        return { success: true, plan };
-      }),
-
     getUsage: protectedProcedure.query(async ({ ctx }) => {
-      const subscription = await getUserSubscription(ctx.user.id);
+      const subscription = await getCurrentSubscription(ctx.user.id);
       if (!subscription) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Sem plano ativo" });
       }
-
       const usage = await getInvoiceUsageThisMonth(ctx.user.id);
+      const limit = subscription.plan.maxInvoicesPerMonth;
       return {
         usage,
-        limit: subscription.plan.maxInvoicesPerMonth,
-        remaining: Math.max(0, subscription.plan.maxInvoicesPerMonth - usage),
-        percentage: Math.round((usage / subscription.plan.maxInvoicesPerMonth) * 100),
+        limit,
+        remaining: Math.max(0, limit - usage),
+        percentage: Math.min(100, Math.round((usage / limit) * 100)),
       };
     }),
+
+    inboundUsage: protectedProcedure.query(({ ctx }) => inboundAllowance(ctx.user)),
   }),
 
   payments: router({
     /**
-     * Create Asaas checkout for a plan.
-     * Returns { paymentUrl } to redirect the user, or { directActivation: true }
-     * when Asaas is not configured (dev mode).
+     * Starts the purchase of a plan. Free plan (or local dev without Asaas) activates directly;
+     * paid plans return the Asaas checkout page and are activated only by the confirmed payment.
      */
     createCheckout: protectedProcedure
-      .input(z.object({ planName: z.string() }))
-      .mutation(async ({ ctx, input }) => {
-        const plan = await getPlanByName(input.planName);
-        if (!plan) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Plano não encontrado" });
-        }
+      .input(z.object({ planName: z.string().max(50) }))
+      .mutation(({ ctx, input }) => billingCall(() => checkout(billingDeps, ctx.user.id, input.planName))),
 
-        if (plan.pricePerMonth === 0) {
-          await createSubscription(ctx.user.id, plan.id);
-          return { directActivation: true, paymentUrl: null };
-        }
-
-        if (!isAsaasConfigured()) {
-          // Dev mode: activate directly without payment
-          await createSubscription(ctx.user.id, plan.id);
-          return { directActivation: true, paymentUrl: null };
-        }
-
-        // Get or create Asaas customer
-        let asaasCustomerRecord = await getAsaasCustomerByUserId(ctx.user.id);
-        if (!asaasCustomerRecord) {
-          const user = await getUserByIdFromDb(ctx.user.id);
-          const asaasCustomer = await createAsaasCustomer({
-            name: user?.name ?? `User ${ctx.user.id}`,
-            email: user?.email ?? `user${ctx.user.id}@autonf.com.br`,
-          });
-          await upsertAsaasCustomer(ctx.user.id, asaasCustomer.id);
-          asaasCustomerRecord = await getAsaasCustomerByUserId(ctx.user.id);
-        }
-
-        if (!asaasCustomerRecord) {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao criar cliente no Asaas" });
-        }
-
-        // Create Asaas subscription with credit card only (recurring)
-        const asaasSub = await createAsaasSubscription({
-          customerId: asaasCustomerRecord.asaasCustomerId,
-          value: plan.pricePerMonth / 100,
-          planName: plan.name,
-        });
-
-        // Create pending billing invoice
-        const nextDueDate = new Date().toISOString().split("T")[0];
-        await createBillingInvoice({
-          userId: ctx.user.id,
-          planName: plan.name,
-          amount: plan.pricePerMonth,
-          dueDate: nextDueDate,
-          asaasSubscriptionId: asaasSub.id,
-          paymentUrl: asaasSub.paymentLink ?? null,
-          status: "pending",
-        });
-
-        return {
-          directActivation: false,
-          paymentUrl: asaasSub.paymentLink ?? null,
-          asaasSubscriptionId: asaasSub.id,
-        };
-      }),
-
+    /** "Já paguei": checks Asaas directly in case the webhook is late. */
     syncSubscription: protectedProcedure.mutation(async ({ ctx }) => {
+      const current = await getCurrentSubscription(ctx.user.id);
       if (!isAsaasConfigured()) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Asaas não configurado" });
+        return { activated: false, alreadyActive: current?.status === "active", planName: current?.plan.name ?? null };
       }
-
-      const invoices = await listBillingInvoices(ctx.user.id);
-      const pending = invoices.find(inv => inv.status === "pending" && inv.asaasSubscriptionId);
-      if (!pending) {
-        const active = await getUserSubscription(ctx.user.id);
-        if (active) return { activated: false, alreadyActive: true, planName: active.plan.name };
-        throw new TRPCError({ code: "NOT_FOUND", message: "Nenhuma assinatura pendente encontrada" });
-      }
-
-      const payments = await listAsaasPayments({ subscription: pending.asaasSubscriptionId!, limit: 5 });
-      const confirmed = payments.data.find(p => p.status === "CONFIRMED" || p.status === "RECEIVED");
-
-      if (!confirmed) return { activated: false, alreadyActive: false, planName: null as string | null };
-
-      await updateBillingInvoice(pending.id, {
-        status: "confirmed",
-        paymentMethod: confirmed.billingType,
-        asaasPaymentId: confirmed.id,
-      });
-
-      const plan = await getPlanByName(pending.planName);
-      if (!plan) throw new TRPCError({ code: "NOT_FOUND", message: "Plano não encontrado" });
-
-      await createSubscription(ctx.user.id, plan.id);
-      return { activated: true, alreadyActive: false, planName: plan.name };
+      const r = await billingCall(() => syncPendingPayment(billingDeps, ctx.user.id));
+      if (r.activated) return { activated: true, alreadyActive: false, planName: r.planName };
+      const waiting = (await liveAsaasSubscriptions(ctx.user.id)).some((s) => s.status === "pending" || s.status === "overdue");
+      return { activated: false, alreadyActive: !waiting && current?.status === "active", planName: current?.plan.name ?? null };
     }),
 
     cancelSubscription: protectedProcedure.mutation(async ({ ctx }) => {
-      const subscription = await getUserSubscription(ctx.user.id);
-      if (!subscription) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Nenhuma assinatura ativa" });
-      }
-
-      if (isAsaasConfigured()) {
-        // Find billing invoice with asaasSubscriptionId to cancel in Asaas
-        const asaasCustomer = await getAsaasCustomerByUserId(ctx.user.id);
-        if (asaasCustomer) {
-          const invoices = await listBillingInvoices(ctx.user.id);
-          const latest = invoices.find(inv => inv.asaasSubscriptionId);
-          if (latest?.asaasSubscriptionId) {
-            try {
-              await cancelAsaasSubscription(latest.asaasSubscriptionId);
-            } catch (err) {
-              console.warn("[Payments] Failed to cancel Asaas subscription:", err);
-            }
-          }
-        }
-      }
-
-      await updateSubscriptionByUserId(ctx.user.id, { status: "cancelled" });
+      await billingCall(() => cancelPlan(billingDeps, ctx.user.id));
       return { success: true };
     }),
   }),

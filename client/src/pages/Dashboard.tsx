@@ -36,7 +36,7 @@ export default function Dashboard() {
   });
 
   const subscriptionQuery = trpc.plans.getSubscription.useQuery();
-  const hasActivePlan = !!subscriptionQuery.data;
+  const hasActivePlan = subscriptionQuery.data?.status === "active";
 
   const metricsQuery = trpc.invoices.metrics.useQuery();
   const certExpiryQuery = trpc.certificates.expirySoon.useQuery();

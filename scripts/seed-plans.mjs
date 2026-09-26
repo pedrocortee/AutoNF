@@ -25,6 +25,7 @@ async function seedPlans() {
         description: "Teste o sistema sem compromisso com até 3 notas fiscais por mês",
         pricePerMonth: 0,
         maxInvoicesPerMonth: 3,
+        maxInboundDocsPerMonth: 10,
         features: JSON.stringify([
           "Até 3 notas fiscais/mês",
           "Suporte por email",
@@ -37,6 +38,7 @@ async function seedPlans() {
         description: "Perfeito para começar com até 50 notas fiscais por mês",
         pricePerMonth: 25000, // R$ 250.00 em centavos
         maxInvoicesPerMonth: 50,
+        maxInboundDocsPerMonth: 200,
         features: JSON.stringify([
           "Até 50 notas fiscais/mês",
           "Suporte por email",
@@ -50,6 +52,7 @@ async function seedPlans() {
         description: "Para empresas em crescimento com até 200 notas fiscais por mês",
         pricePerMonth: 40000, // R$ 400.00 em centavos
         maxInvoicesPerMonth: 200,
+        maxInboundDocsPerMonth: 800,
         features: JSON.stringify([
           "Até 200 notas fiscais/mês",
           "Suporte prioritário",
@@ -65,6 +68,7 @@ async function seedPlans() {
         description: "Para grandes empresas com necessidades ilimitadas",
         pricePerMonth: 99900, // R$ 999.00 em centavos
         maxInvoicesPerMonth: 999999,
+        maxInboundDocsPerMonth: 3000,
         features: JSON.stringify([
           "Notas fiscais ilimitadas",
           "Suporte 24/7 dedicado",
@@ -80,7 +84,7 @@ async function seedPlans() {
       },
     ];
 
-    // Delete existing plans
+    // Delete existing plans — recreates ids: never run against a database with subscriptions
     await db.delete(plans);
 
     // Insert plans

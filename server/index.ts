@@ -13,17 +13,11 @@ import { startDfeSync } from "./_core/sefaz/dfeRunner";
 import { inboundRoutes } from "./inboundRoutes";
 import { idsPendingProcessing } from "./inboundDb";
 import { enqueueInbound } from "./_core/inbound/queue";
-import {
-  upsertUser,
-  getBillingInvoicesByAsaasSubscriptionId,
-  updateBillingInvoice,
-  getPlanByName,
-  createSubscription,
-  updateSubscriptionByUserId,
-  deleteExpiredInvoices,
-} from "./db";
+import { upsertUser, deleteExpiredInvoices } from "./db";
 import type { AsaasWebhookEvent } from "./_core/asaas";
-import { ensureAsaasWebhook } from "./_core/asaas";
+import { ensureAsaasWebhook, isValidWebhookToken } from "./_core/asaas";
+import { handleAsaasEvent } from "./_core/billing";
+import { billingDeps } from "./billingService";
 
 const app = express();
 
@@ -90,46 +84,24 @@ app.post(
 app.use(express.json());
 
 // ─── Asaas webhook — raw Express route (tRPC can't receive Asaas's plain JSON) ─
+// Only Asaas knows the token (sent as authToken when the webhook is registered); without this
+// check anyone could post a fake "payment confirmed" and get a paid plan.
 app.post("/api/webhooks/asaas", async (req, res) => {
-  try {
-    const { event, payment } = req.body as AsaasWebhookEvent;
-    const subscriptionId = payment?.subscription;
-
-    if (!payment || !subscriptionId) {
-      res.json({ ok: true });
-      return;
-    }
-
-    const invoices = await getBillingInvoicesByAsaasSubscriptionId(subscriptionId);
-    const invoice = invoices[0];
-
-    if (event === "PAYMENT_CONFIRMED" || event === "PAYMENT_RECEIVED") {
-      if (invoice) {
-        await updateBillingInvoice(invoice.id, {
-          status: "confirmed",
-          paymentMethod: payment.billingType,
-          asaasPaymentId: payment.id,
-        });
-        const plan = await getPlanByName(invoice.planName);
-        if (plan) {
-          await createSubscription(invoice.userId, plan.id);
-          console.log(`[asaas-webhook] subscription activated for userId=${invoice.userId} plan=${plan.name}`);
-        }
-      }
-    } else if (event === "PAYMENT_OVERDUE") {
-      if (invoice) {
-        await updateBillingInvoice(invoice.id, { status: "overdue" });
-      }
-    } else if (event === "PAYMENT_DELETED" || event === "SUBSCRIPTION_DELETED") {
-      if (invoice) {
-        await updateBillingInvoice(invoice.id, { status: "cancelled" });
-        await updateSubscriptionByUserId(invoice.userId, { status: "cancelled" });
-      }
-    }
-  } catch (err) {
-    console.error("[asaas-webhook] error:", err);
+  if (!isValidWebhookToken(req.header("asaas-access-token"))) {
+    console.warn("[asaas-webhook] rejected notification with missing/invalid token");
+    res.status(401).json({ error: "invalid token" });
+    return;
   }
-  res.json({ ok: true });
+  try {
+    const { event, payment, subscription } = req.body as AsaasWebhookEvent;
+    const outcome = await handleAsaasEvent(billingDeps, event, payment, subscription);
+    if (outcome !== "ignored") console.log(`[asaas-webhook] ${event} → ${outcome}`);
+    res.json({ ok: true });
+  } catch (err) {
+    // 500 makes Asaas retry later instead of losing the notification
+    console.error("[asaas-webhook] error:", err);
+    res.status(500).json({ error: "processing failed" });
+  }
 });
 
 app.use(clerkMiddleware());

@@ -9,6 +9,20 @@ export function PlanUsageCard() {
   const { data: subscription } = trpc.plans.getSubscription.useQuery();
   const { data: usage } = trpc.plans.getUsage.useQuery(undefined, { enabled: !!subscription });
 
+  if (subscription?.status === "paused") {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-amber-900">Pagamento do plano {subscription.plan.name} em atraso</p>
+            <p className="text-xs text-amber-800">A emissão está suspensa até o pagamento ser confirmado.</p>
+          </div>
+          <Button size="sm" onClick={() => navigate("/plans")} className="shrink-0">Regularizar</Button>
+        </div>
+      </div>
+    );
+  }
+
   if (!subscription || !usage) {
     return (
       <div className="rounded-xl border border-dashed border-indigo-200 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/20 p-5">

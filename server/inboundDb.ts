@@ -247,3 +247,14 @@ export async function idsPendingProcessing(): Promise<number[]> {
     .where(or(eq(inboundDocuments.status, "recebido"), eq(inboundDocuments.status, "processando")));
   return rows.map((r) => r.id);
 }
+
+/** Documents the user uploaded since the start of the current month (UTC) — the plan quota. */
+export async function countUploadsThisMonth(userId: number): Promise<number> {
+  const now = new Date();
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const rows = await (await db())
+    .select({ n: sql<number>`count(*)` })
+    .from(inboundDocuments)
+    .where(and(eq(inboundDocuments.userId, userId), eq(inboundDocuments.source, "upload"), sql`${inboundDocuments.createdAt} >= ${start}`));
+  return Number(rows[0]?.n ?? 0);
+}

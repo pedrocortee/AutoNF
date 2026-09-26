@@ -136,7 +136,7 @@ export default function Plans() {
           <h1 className="text-3xl font-bold text-foreground tracking-tight">Escolha seu plano</h1>
           <p className="text-muted-foreground text-sm max-w-sm mx-auto">
             {currentSubscription
-              ? <>Plano atual: <span className="font-semibold text-indigo-600 dark:text-indigo-400">{currentSubscription.plan.name}</span></>
+              ? <>Plano atual: <span className="font-semibold text-indigo-600 dark:text-indigo-400">{currentSubscription.plan.name}</span>{currentSubscription.status === "paused" && <span className="text-amber-700"> — pagamento em atraso</span>}</>
               : "Emita notas fiscais com segurança e conformidade. Cancele quando quiser."}
           </p>
         </div>
@@ -144,7 +144,8 @@ export default function Plans() {
         {/* Plan Cards */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
           {plans.map((plan, idx) => {
-            const isCurrentPlan = currentSubscription?.planId === plan.id;
+            const isCurrentPlan = currentSubscription?.planId === plan.id && currentSubscription.status === "active";
+            const isOverduePlan = currentSubscription?.planId === plan.id && currentSubscription.status === "paused";
             const isFree = plan.pricePerMonth === 0;
             const isHighlighted = idx === 1 && !isFree;
             const features: string[] = JSON.parse(plan.features || "[]");
@@ -190,6 +191,7 @@ export default function Plans() {
                       <div>
                         <p className="text-4xl font-extrabold text-foreground">Grátis</p>
                         <p className="text-xs text-muted-foreground mt-1">Para sempre</p>
+                        <p className="text-xs text-muted-foreground">Entrada: {plan.maxInboundDocsPerMonth > 0 ? `até ${plan.maxInboundDocsPerMonth} documentos/mês` : "não inclusa"}</p>
                       </div>
                     ) : (
                       <div>
@@ -203,6 +205,7 @@ export default function Plans() {
                         <p className="text-xs text-muted-foreground mt-1">
                           Até {plan.maxInvoicesPerMonth === 999999 ? "∞" : plan.maxInvoicesPerMonth} notas/mês
                         </p>
+                        <p className="text-xs text-muted-foreground">Entrada: {plan.maxInboundDocsPerMonth > 0 ? `até ${plan.maxInboundDocsPerMonth} documentos/mês` : "não inclusa"}</p>
                       </div>
                     )}
                   </div>
@@ -224,6 +227,8 @@ export default function Plans() {
                   >
                     {isCurrentPlan
                       ? "Plano atual"
+                      : isOverduePlan
+                        ? "Pagar fatura em atraso"
                       : subscribingTo === plan.name
                         ? "Processando..."
                         : isFree
