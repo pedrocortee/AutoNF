@@ -6,3 +6,12 @@ storage/
 *.pfx
 *.pem
 .claude/
+
+# Artefatos de ferramentas locais (ruflo/claude-flow, playwright)
+.claude-flow/
+.swarm/
+.playwright-mcp/
+ruvector.db
+
+# Screenshots de verificação manual na raiz
+/[0-9]*.png
