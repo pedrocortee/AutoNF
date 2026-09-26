@@ -97,3 +97,14 @@ describe("extractWithLlm", () => {
     await expect(extractWithLlm(Buffer.from("x"), "application/pdf", { client: bad.client })).rejects.toThrow(/formato/);
   });
 });
+
+describe("extractWithLlm without credentials", () => {
+  it("explains that the AI key is missing", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    vi.stubEnv("ANTHROPIC_AUTH_TOKEN", "");
+    const Anthropic = (await import("@anthropic-ai/sdk")).default;
+    const client = { beta: { messages: { create: vi.fn().mockRejectedValue(new Anthropic.AnthropicError("Could not resolve authentication method")) } } } as never;
+    await expect(extractWithLlm(Buffer.from("%PDF"), "application/pdf", { client })).rejects.toThrow(/chave da Anthropic/);
+    vi.unstubAllEnvs();
+  });
+});

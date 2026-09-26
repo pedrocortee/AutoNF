@@ -24,7 +24,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, LogOut, PanelLeft, Settings,
-  CreditCard, Receipt, ChevronRight,
+  CreditCard, Receipt, ChevronRight, Inbox,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -33,6 +33,7 @@ import { Button } from "./ui/button";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+  { icon: Inbox,           label: "Entrada",    path: "/entrada" },
   { icon: CreditCard,      label: "Planos",     path: "/plans" },
   { icon: Receipt,         label: "Faturas",    path: "/billing" },
   { icon: Settings,        label: "Configurações", path: "/settings" },
@@ -97,7 +98,8 @@ function DashboardLayoutContent({
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const activeMenuItem = menuItems.find(item => item.path === location);
+  const isPathActive = (path: string) => location === path || location.startsWith(`${path}/`);
+  const activeMenuItem = menuItems.find(item => isPathActive(item.path));
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -155,7 +157,7 @@ function DashboardLayoutContent({
           <SidebarContent className="px-3 py-3 gap-0.5 flex flex-col">
             <SidebarMenu className="gap-0.5 flex-1">
               {menuItems.map(item => {
-                const isActive = location === item.path;
+                const isActive = isPathActive(item.path);
                 return (
                   <SidebarMenuItem key={item.path}>
                     <button

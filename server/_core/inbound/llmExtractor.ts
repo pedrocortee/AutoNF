@@ -200,6 +200,10 @@ export async function extractWithLlm(
     if (err instanceof Anthropic.RateLimitError || err instanceof Anthropic.InternalServerError || err instanceof Anthropic.APIConnectionError) {
       throw new LlmExtractionError(`Falha temporária na IA: ${err.message}`, true);
     }
+    if (err instanceof Anthropic.AuthenticationError || (err instanceof Anthropic.AnthropicError && !(err instanceof Anthropic.APIError))) {
+      // Missing/invalid credentials surface here (no ANTHROPIC_API_KEY on the server)
+      throw new LlmExtractionError("Leitura por IA indisponível: chave da Anthropic não configurada no servidor", false);
+    }
     if (err instanceof Anthropic.APIError) {
       throw new LlmExtractionError(`Erro da API de IA (${err.status}): ${err.message}`, false);
     }
