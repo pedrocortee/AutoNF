@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useRoute } from "wouter";
-import { AlertCircle, AlertTriangle, ArrowLeft, Check, RotateCcw, Save, Trash2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowLeft, BookOpen, Check, RotateCcw, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -38,9 +38,11 @@ export default function DocumentReview() {
   const approveMutation = trpc.inbound.approve.useMutation();
   const discardMutation = trpc.inbound.discard.useMutation();
   const reprocessMutation = trpc.inbound.reprocess.useMutation();
+  const companiesQuery = trpc.companies.list.useQuery(undefined, { enabled: isAuthenticated });
 
   const [doc, setDoc] = useState<EditableDocument | null>(null);
   const [money, setMoney] = useState<MoneyDraft | null>(null);
+  const [companyId, setCompanyId] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const [discardReason, setDiscardReason] = useState("");
@@ -50,6 +52,7 @@ export default function DocumentReview() {
     if (record?.extracted) {
       setDoc(record.extracted as EditableDocument);
       setMoney(moneyDraftFrom(record.extracted as EditableDocument));
+      setCompanyId(record.companyId);
       setDirty(false);
     }
   }, [record?.id, record?.updatedAt]);
@@ -78,7 +81,7 @@ export default function DocumentReview() {
       return false;
     }
     try {
-      const { issues: newIssues } = await updateMutation.mutateAsync({ id, extracted: merged });
+      const { issues: newIssues } = await updateMutation.mutateAsync({ id, extracted: merged, companyId });
       setDirty(false);
       await utils.inbound.get.invalidate({ id });
       const errs = newIssues.filter((i) => i.severity === "error").length;
@@ -204,6 +207,60 @@ export default function DocumentReview() {
             <FileViewer id={record.id} mediaType={record.mediaType} />
           </div>
           <div className="rounded-lg border border-border p-5">
+            {doc && money && (
+              <div className="mb-5">
+                <label htmlFor="companyId" className="text-sm font-medium">Empresa</label>
+                <select
+                  id="companyId"
+                  value={companyId ?? ""}
+                  disabled={!editable}
+                  onChange={(e) => { setCompanyId(e.target.value ? Number(e.target.value) : null); setDirty(true); }}
+                  className={cn(
+                    "mt-1 w-full h-9 rounded-md border bg-background px-3 text-sm",
+                    companyId === null ? "border-amber-400" : "border-input"
+                  )}
+                >
+                  <option value="">Sem empresa</option>
+                  {companiesQuery.data?.companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                {companyId === null && (companiesQuery.data?.companies.length ?? 0) > 0 && (
+                  <p className="text-xs text-amber-700 mt-1">O destinatário não bate com nenhuma empresa cadastrada. Escolha a empresa ou descarte.</p>
+                )}
+              </div>
+            )}
+            {doc && (
+              <div className="mb-5 rounded-md border border-border bg-muted/30 px-4 py-3 text-sm">
+                <div className="flex items-center gap-2 font-medium text-foreground mb-1">
+                  <BookOpen className="w-4 h-4" />Lançamento
+                </div>
+                {query.data?.classification ? (
+                  <div className="space-y-0.5 text-muted-foreground">
+                    <p>
+                      Conta <span className="font-mono text-foreground">{query.data.classification.account}</span>
+                      {query.data.classification.costCenter && <> · centro de custo <span className="text-foreground">{query.data.classification.costCenter}</span></>}
+                    </p>
+                    {query.data.classification.history && <p>Histórico: <span className="text-foreground">{query.data.classification.history}</span></p>}
+                    <p className="text-xs">Regra: {query.data.classification.ruleName}</p>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">
+                    Nenhuma regra se aplica.{" "}
+                    {doc.issuer.document && (
+                      <button
+                        className="underline text-foreground"
+                        onClick={() => {
+                          const p = new URLSearchParams({ novo: "1", emitente: doc.issuer.document!, nome: doc.issuer.name ?? "" });
+                          if (companyId !== null) p.set("empresa", String(companyId));
+                          navigate(`/regras?${p}`);
+                        }}
+                      >
+                        Criar regra para este emitente
+                      </button>
+                    )}
+                  </p>
+                )}
+              </div>
+            )}
             {doc && money ? (
               <DocumentFields
                 doc={doc}

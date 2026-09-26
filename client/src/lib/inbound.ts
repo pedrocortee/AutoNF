@@ -106,11 +106,11 @@ export function useInboundApi() {
   const fileBlob = useCallback(async (id: number) => (await authed(`/api/inbound/${id}/file`)).blob(), [authed]);
 
   const exportCsv = useCallback(
-    async (ids?: number[]) => {
+    async (opts: { ids?: number[]; companyId?: number | null } = {}) => {
       const res = await authed("/api/inbound/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids }),
+        body: JSON.stringify(opts),
       });
       const name = res.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1] ?? "autonf-entrada.csv";
       const url = URL.createObjectURL(await res.blob());

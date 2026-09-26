@@ -24,7 +24,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, LogOut, PanelLeft, Settings,
-  CreditCard, Receipt, ChevronRight, Inbox,
+  CreditCard, Receipt, ChevronRight, Inbox, Building2, ListChecks,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -34,6 +34,8 @@ import { Button } from "./ui/button";
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: Inbox,           label: "Entrada",    path: "/entrada" },
+  { icon: Building2,       label: "Empresas",   path: "/empresas" },
+  { icon: ListChecks,      label: "Regras",     path: "/regras" },
   { icon: CreditCard,      label: "Planos",     path: "/plans" },
   { icon: Receipt,         label: "Faturas",    path: "/billing" },
   { icon: Settings,        label: "Configurações", path: "/settings" },

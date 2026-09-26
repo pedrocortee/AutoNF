@@ -266,23 +266,33 @@ como "possível duplicado" (mesmo tipo, emitente, data, valor e número compatí
 
 **Pronto quando:** subir 15 documentos misturados → os XMLs são aprovados sozinhos, os PDFs são extraídos, 1 boleto com linha digitável errada cai na revisão, e a planilha exportada abre certinha.
 
-### Fase B — Multi-empresa e regras (03–09/10) · 4 dias
+### Fase B — Multi-empresa e regras (03–09/10) · 4 dias — ✅ feita em 26/09
 **Objetivo:** o escritório consegue cadastrar os clientes dele (resolve G1).
-| # | Tarefa | Esforço |
-|---|---|---|
-| B.1 | Tabela `companies` + `companyId` em `companyConfigs`, `digitalCertificates` e `invoices` (migração não destrutiva) | 1d |
-| B.2 | Certificado A1 por empresa (reusa `crypto.ts` e `certificateValidator.ts`) | 4h |
-| B.3 | Seletor de empresa no header + filtro por empresa em todas as consultas | 4h |
-| B.4 | `mappingRules` + `rules.ts` + tela `Rules.tsx` | 1d |
-| B.5 | Separar `routers.ts` e `db.ts` por domínio (resolve G5) | 4h |
-| B.6 | Testes de regressão da emissão de NFS-e depois da migração | 4h |
 
-**Pronto quando:** um usuário com 3 empresas vê os documentos de cada uma separados, e uma regra "fornecedor X → conta Y" é aplicada na exportação.
+**Mudança de desenho:** em vez de refatorar `companyConfigs`/`digitalCertificates`/`invoices` (usados em 12
+pontos da emissão de NFS-e), as empresas atendidas viraram uma tabela própria (`clientCompanies`) usada pela
+Entrada. A emissão fica intacta — sem risco de regressão. O certificado por empresa entra na Fase C, junto
+com a captura, que é onde ele é usado.
+
+| # | Tarefa | Status |
+|---|---|---|
+| B.1 | `clientCompanies` + `companyId` em `inboundDocuments` | ✅ |
+| B.2 | Certificado A1 por empresa | ➡️ movido para a Fase C (C.0) |
+| B.3 | Filtro por empresa na Entrada (lista, contadores, exportação, estatísticas) + link `?empresa=` | ✅ |
+| B.4 | `mappingRules` + `rules.ts` + tela `Rules.tsx` + "criar regra para este emitente" na revisão | ✅ |
+| B.5 | Separar `routers.ts` e `db.ts` por domínio | ⏳ adiado (código novo já nasce separado; os antigos não mudaram) |
+| B.6 | Regressão da emissão | ✅ 359 testes antigos passando (emissão não foi alterada) |
+| extra | Roteamento automático pelo CNPJ do destinatário; importação de empresas em lote; documentos órfãos atribuídos e revalidados ao cadastrar a empresa | ✅ |
+
+**Verificado:** 413 testes; cenário completo no navegador (importar lista → 10 documentos antigos atribuídos
+e 2 aprovados sozinhos → ZIP com notas de 3 destinatários roteado certo → regra criada pela revisão →
+exportação filtrada com empresa, código, conta, centro de custo e histórico).
 
 ### Fase C — Captura automática SEFAZ (10–16/10) · 4 dias
 **Objetivo:** as notas aparecem sozinhas. É o maior diferencial de venda.
 | # | Tarefa | Esforço |
 |---|---|---|
+| C.0 | Certificado A1 por empresa atendida (upload na tela Empresas; reusa `crypto.ts`, `certificateValidator.ts`, `certExpiryJob.ts`) | 4h |
 | C.1 | `dfeDistribution.ts`: consulta `NFeDistribuicaoDFe` por NSU com mTLS usando o A1 da empresa | 1d |
 | C.2 | Tratar resumos (`resNFe`) e XML completo (`procNFe`); descompactar `docZip` (base64 + gzip) | 4h |
 | C.3 | `manifestacao.ts`: evento Ciência da Operação (210210) para liberar o XML completo | 4h |

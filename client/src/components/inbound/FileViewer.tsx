@@ -49,14 +49,15 @@ export function FileViewer({ id, mediaType }: { id: number; mediaType: string })
 function prettyXml(xml: string): string {
   let depth = 0;
   return xml
-    .replace(/>\s*</g, "><")
-    .replace(/</g, "\n<")
+    .replace(/>\s*</g, ">\n<")
     .split("\n")
     .filter(Boolean)
     .map((line) => {
-      if (line.startsWith("</")) depth = Math.max(0, depth - 1);
+      const closing = line.startsWith("</");
+      const opensBlock = /^<[^!?/][^>]*[^/]>$/.test(line) || /^<[^!?/]>$/.test(line); // <tag ...> with no text and no close
+      if (closing) depth = Math.max(0, depth - 1);
       const out = "  ".repeat(depth) + line;
-      if (line.startsWith("<") && !line.startsWith("</") && !line.startsWith("<?") && !line.endsWith("/>") && !line.includes("</")) depth++;
+      if (opensBlock) depth++;
       return out;
     })
     .join("\n");

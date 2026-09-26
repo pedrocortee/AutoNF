@@ -14,6 +14,8 @@ import Billing from "./pages/Billing";
 import Privacy from "./pages/Privacy";
 import Inbox from "./pages/Inbox";
 import DocumentReview from "./pages/DocumentReview";
+import Companies from "./pages/Companies";
+import Rules from "./pages/Rules";
 import { PrivacyConsentModal } from "./components/PrivacyConsentModal";
 import { trpc } from "@/lib/trpc";
 
@@ -37,6 +39,8 @@ function Router() {
         <Route path={"/invoices/:id"} component={InvoiceDetail} />
         <Route path={"/entrada"} component={Inbox} />
         <Route path={"/entrada/:id"} component={DocumentReview} />
+        <Route path={"/empresas"} component={Companies} />
+        <Route path={"/regras"} component={Rules} />
         <Route path={"/docs"} component={Documentation} />
         <Route path={"/settings"} component={Settings} />
         <Route path={"/plans"} component={Plans} />
