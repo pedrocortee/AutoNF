@@ -238,3 +238,12 @@ export async function listInReviewForCompany(userId: number, companyId: number):
     .from(inboundDocuments)
     .where(and(eq(inboundDocuments.userId, userId), eq(inboundDocuments.companyId, companyId), eq(inboundDocuments.status, "revisao")));
 }
+
+/** Ids stuck in "recebido" or "processando" — a Redis restart drops queued jobs, MySQL keeps the status. */
+export async function idsPendingProcessing(): Promise<number[]> {
+  const rows = await (await db())
+    .select({ id: inboundDocuments.id })
+    .from(inboundDocuments)
+    .where(or(eq(inboundDocuments.status, "recebido"), eq(inboundDocuments.status, "processando")));
+  return rows.map((r) => r.id);
+}

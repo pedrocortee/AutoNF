@@ -11,6 +11,8 @@ import { startNFSeWorker } from "./_core/worker";
 import { startInboundWorker } from "./_core/inbound/queue";
 import { startDfeSync } from "./_core/sefaz/dfeRunner";
 import { inboundRoutes } from "./inboundRoutes";
+import { idsPendingProcessing } from "./inboundDb";
+import { enqueueInbound } from "./_core/inbound/queue";
 import {
   upsertUser,
   getBillingInvoicesByAsaasSubscriptionId,
@@ -161,6 +163,16 @@ app.listen(ENV.port, () => {
 startNFSeWorker();
 startInboundWorker();
 startDfeSync().catch((err) => console.error("[DfeSync] could not start:", err));
+
+// A restart can drop queued jobs (e.g. a free/in-memory Redis) while the document keeps its
+// status in MySQL — put those back on the queue so nothing sits forever as "recebido"/"processando".
+idsPendingProcessing()
+  .then((ids) => {
+    if (ids.length === 0) return;
+    console.log(`[Inbound] requeuing ${ids.length} document(s) pending from before the restart`);
+    return Promise.all(ids.map((id) => enqueueInbound(id)));
+  })
+  .catch((err) => console.error("[Inbound] could not requeue pending documents:", err));
 
 // Auto-register Asaas webhook on startup (skipped when PUBLIC_URL is localhost)
 ensureAsaasWebhook(ENV.publicUrl);
