@@ -72,3 +72,43 @@ export async function deletePDF(filePath: string): Promise<void> {
     fs.unlinkSync(filePath);
   } catch { /* ignore */ }
 }
+
+// ---------------------------------------------------------------------------
+// Generic objects (inbound documents). Keys are opaque, e.g. "inbound/12/<sha256>.pdf".
+// ---------------------------------------------------------------------------
+
+const OBJECTS_LOCAL_PATH = process.env.INBOUND_STORAGE_PATH ?? path.join(process.cwd(), "storage", "objects");
+
+function localObjectPath(key: string): string {
+  const safe = key.replace(/\.\./g, "").replace(/^\/+/, "");
+  return path.join(OBJECTS_LOCAL_PATH, safe);
+}
+
+export async function saveObject(key: string, buffer: Buffer, contentType: string): Promise<string> {
+  if (USE_R2 && s3) {
+    await s3.send(new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: buffer, ContentType: contentType }));
+    return key;
+  }
+  const fullPath = localObjectPath(key);
+  fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+  fs.writeFileSync(fullPath, buffer);
+  return key;
+}
+
+export async function readObject(key: string): Promise<Buffer | null> {
+  if (USE_R2 && s3) {
+    try {
+      const res = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of res.Body as AsyncIterable<Uint8Array>) chunks.push(chunk);
+      return Buffer.concat(chunks);
+    } catch {
+      return null;
+    }
+  }
+  try {
+    return fs.readFileSync(localObjectPath(key));
+  } catch {
+    return null;
+  }
+}

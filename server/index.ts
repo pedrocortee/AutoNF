@@ -8,6 +8,8 @@ import { appRouter } from "./routers";
 import { createContext } from "./_core/trpc";
 import { ENV } from "./_core/env";
 import { startNFSeWorker } from "./_core/worker";
+import { startInboundWorker } from "./_core/inbound/queue";
+import { inboundRoutes } from "./inboundRoutes";
 import {
   upsertUser,
   getBillingInvoicesByAsaasSubscriptionId,
@@ -129,6 +131,9 @@ app.post("/api/webhooks/asaas", async (req, res) => {
 
 app.use(clerkMiddleware());
 
+// ─── Módulo Entrada: upload binário, arquivo original e exportação CSV ───────
+app.use(inboundRoutes);
+
 // ─── tRPC ─────────────────────────────────────────────────────────────────────
 app.use(
   "/trpc",
@@ -153,6 +158,7 @@ app.listen(ENV.port, () => {
 
 // Start the BullMQ worker in the same process (single-service deploy)
 startNFSeWorker();
+startInboundWorker();
 
 // Auto-register Asaas webhook on startup (skipped when PUBLIC_URL is localhost)
 ensureAsaasWebhook(ENV.publicUrl);
