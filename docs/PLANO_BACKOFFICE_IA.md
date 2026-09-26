@@ -239,15 +239,30 @@ tests/inbound/         testes Vitest + fixtures anonimizadas (XMLs e PDFs fictí
 | A.1 | Tabelas `inboundDocuments` e `inboundDocumentEvents` + migração | 2h | ✅ criadas no banco local; falta aplicar em produção |
 | A.2 | `ingest.ts` + upload em lote (arquivos e ZIP) + fila `inbound-docs` | 4h | ✅ |
 | A.3 | `xml/nfeParser.ts` + `xml/nfseParser.ts` com testes | 4h | ✅ (CT-e vai para erro com aviso; parser na Fase C) |
-| A.4 | `schemas.ts` + `llmExtractor.ts` para NFS-e PDF e boleto | 6h | ✅ código e testes; **falta testar com PDFs reais** (precisa da chave) |
+| A.4 | `schemas.ts` + `llmExtractor.ts` para NFS-e PDF e boleto | 6h | ✅ testado com a API real (NFS-e em PDF/PNG/JPEG e boletos) |
 | A.5 | `validators.ts` + `confidence.ts` com testes | 4h | ✅ inclui CNPJ alfanumérico e linha digitável |
-| A.6 | Telas `Inbox.tsx` e `DocumentReview.tsx` | 6h | ✅ build ok; **falta conferir logado no navegador** |
+| A.6 | Telas `Inbox.tsx` e `DocumentReview.tsx` | 6h | ✅ testado logado no navegador (upload, revisão, correção, aprovação, exportação) |
 | A.7 | Exportação CSV/XLSX genérica | 2h | ✅ CSV (abre no Excel pt-BR); XLSX não é necessário por ora |
-| A.8 | Roteiro de demo de 5 minutos + vídeo gravado de 2 minutos | 2h | ⏳ depois do teste com PDFs reais |
+| A.8 | Roteiro de demo de 5 minutos + vídeo gravado de 2 minutos | 2h | ⏳ pendente |
 
 **Verificado em 26/09:** 402 testes passando (359 antigos + 43 novos); teste de ponta a ponta no banco local
 (NF-e aprovada sozinha, NF-e de outro CNPJ em revisão, cópia descartada como duplicada, extensão inválida
 rejeitada, CSV correto); servidor sobe e as rotas novas exigem login.
+
+**Testes com IA real e navegador (26/09):**
+
+| Documento | `claude-opus-5` | `claude-sonnet-5` |
+|---|---|---|
+| NFS-e PDF | aprovado, campos corretos | aprovado, campos corretos |
+| NFS-e imagem | aprovado, campos corretos | aprovado, campos corretos |
+| Boleto correto | aprovado | revisão (inseguro na linha digitável) |
+| Boleto com dígito errado | revisão (erro detectado) | revisão (erro detectado) |
+| Custo por documento | US$ 0,028 (~R$ 0,15) | US$ 0,011 (~R$ 0,06) |
+
+Decisão: manter `claude-opus-5` como padrão (menos revisão manual vale mais que ~R$ 0,10/doc).
+O teste achou e corrigiu: (1) dúvida em campo descritivo (nome do banco) travava a aprovação;
+(2) a mesma NFS-e enviada como PDF e como imagem era aprovada duas vezes — agora vai para revisão
+como "possível duplicado" (mesmo tipo, emitente, data, valor e número compatível).
 
 **Pronto quando:** subir 15 documentos misturados → os XMLs são aprovados sozinhos, os PDFs são extraídos, 1 boleto com linha digitável errada cai na revisão, e a planilha exportada abre certinha.
 
@@ -407,9 +422,9 @@ reuniões marcadas vale mais que uma funcionalidade perfeita sem ninguém para v
 **Fase 0 e quase toda a Fase A feitas** (branch `feat/entrada-ia`, commits locais — o push depende de
 reautenticar o GitHub nesta máquina). Para fechar a Fase A:
 
-1. Configurar `ANTHROPIC_API_KEY` no `.env` e subir 5 a 10 PDFs reais (NFS-e de prefeituras diferentes e boletos)
-2. Abrir `/entrada` logado e fazer o fluxo completo: upload → revisão → aprovação → exportação
-3. Aplicar as tabelas no banco de produção (`npm run db:push`, conferindo o que ele vai alterar antes de confirmar)
-4. Gravar o vídeo de 2 minutos da demo (A.8)
+1. Testar com documentos **reais** de um cliente (os testes usaram documentos fictícios gerados com layout realista)
+2. Aplicar as tabelas no banco de produção (`npm run db:push`, conferindo o que ele vai alterar antes de confirmar)
+3. Gravar o vídeo de 2 minutos da demo (A.8)
+4. Reautenticar o GitHub e enviar a branch
 
 Depois disso, Fase B (multi-empresa).

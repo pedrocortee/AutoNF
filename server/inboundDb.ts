@@ -89,6 +89,33 @@ export async function findActiveByAccessKey(userId: number, accessKey: string, e
   return rows[0];
 }
 
+/**
+ * Candidates for a duplicate when there is no access key (municipal NFS-e PDFs, boletos):
+ * same type, issuer, issue date and amount. Number matching is done by the caller.
+ */
+export async function findDuplicateCandidates(
+  userId: number,
+  m: { docType: NonNullable<InboundDocument["docType"]>; issuerDocument: string; issueDate: string; totalCents: number },
+  excludeId: number
+): Promise<InboundDocument[]> {
+  return (await db())
+    .select()
+    .from(inboundDocuments)
+    .where(
+      and(
+        eq(inboundDocuments.userId, userId),
+        eq(inboundDocuments.docType, m.docType),
+        eq(inboundDocuments.issuerDocument, m.issuerDocument),
+        eq(inboundDocuments.issueDate, m.issueDate),
+        eq(inboundDocuments.totalCents, m.totalCents),
+        ne(inboundDocuments.id, excludeId),
+        ne(inboundDocuments.status, "descartado")
+      )
+    )
+    .orderBy(inboundDocuments.id)
+    .limit(5);
+}
+
 export interface InboundListFilters {
   status?: InboundStatus;
   docType?: NonNullable<InboundDocument["docType"]>;

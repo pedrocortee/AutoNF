@@ -5,12 +5,14 @@
 import { getCompanyConfig } from "../../db";
 import {
   findActiveByAccessKey,
+  findDuplicateCandidates,
   getInboundDocument,
   transitionInbound,
   updateInboundDocument,
 } from "../../inboundDb";
 import { readObject } from "../storage";
 import { runPipeline, type PipelineDeps } from "./pipeline";
+import { sameDocumentNumber } from "./validators";
 
 export class RetryableProcessingError extends Error {}
 
@@ -43,6 +45,27 @@ export async function processInboundDocument(documentId: number, deps: PipelineD
 
   const { extraction, issues, decision } = outcome;
   const d = extraction.document;
+
+  // Without an access key, the same document can arrive twice (e-mailed PDF + upload,
+  // photo + PDF). Flag it for review instead of discarding: similar notes can be legit.
+  if (!d.accessKey && d.issuer.document && d.issueDate && d.totalCents !== null) {
+    const candidates = await findDuplicateCandidates(
+      doc.userId,
+      { docType: d.docType, issuerDocument: d.issuer.document, issueDate: d.issueDate, totalCents: d.totalCents },
+      documentId
+    );
+    const dup = candidates.find((c) => sameDocumentNumber(c.extracted?.number ?? null, d.number));
+    if (dup) {
+      issues.push({
+        severity: "warning",
+        code: "possible_duplicate",
+        field: "number",
+        message: `Possível duplicado do documento #${dup.id} (${dup.originalFilename}): mesmo emitente, número, data e valor`,
+      });
+      decision.status = "revisao";
+      decision.reasons.unshift(`Possível duplicado do #${dup.id}`);
+    }
+  }
   await updateInboundDocument(documentId, {
     docType: d.docType,
     accessKey: d.accessKey,

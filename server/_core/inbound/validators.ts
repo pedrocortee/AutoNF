@@ -113,3 +113,15 @@ export function validateDocument(doc: ExtractedDocument, ctx: ValidationContext)
 
   return issues;
 }
+
+/**
+ * Document numbers written differently by different sources ("2026/000874" in the PDF,
+ * "874" in the XML) are the same when their digit strings, without leading zeros, are
+ * equal or one ends with the other. Missing numbers never match.
+ */
+export function sameDocumentNumber(a: string | null, b: string | null): boolean {
+  const norm = (v: string | null) => (v ?? "").replace(/\D/g, "").replace(/^0+/, "");
+  const x = norm(a), y = norm(b);
+  if (!x || !y) return false;
+  return x === y || x.endsWith(y) || y.endsWith(x);
+}

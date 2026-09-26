@@ -5,7 +5,7 @@ import {
   isValidCpf,
   parseDigitableLine,
 } from "../../server/_core/inbound/checksums";
-import { validateDocument } from "../../server/_core/inbound/validators";
+import { sameDocumentNumber, validateDocument } from "../../server/_core/inbound/validators";
 import { decide } from "../../server/_core/inbound/confidence";
 import { parseNFeXml } from "../../server/_core/inbound/xml/nfeParser";
 import { emptyDocument, type ExtractionResult } from "../../server/_core/inbound/schemas";
@@ -131,9 +131,24 @@ describe("decide", () => {
     expect(decide(base({ extractorConfidence: 0.8 }), []).status).toBe("revisao");
   });
 
+  it("does not block on doubt about descriptive fields only", () => {
+    expect(decide(base({ uncertainFields: ["bankName", "issuerName"] }), []).status).toBe("aprovado");
+    expect(decide(base({ uncertainFields: ["bankName", "dueDate"] }), []).status).toBe("revisao");
+  });
+
   it("lowers the score for errors", () => {
     const d = decide(base(), [{ code: "x", field: null, severity: "error", message: "" }]);
     expect(d.score).toBeCloseTo(0.65);
     expect(d.reasons[0]).toMatch(/erro/);
+  });
+});
+
+describe("sameDocumentNumber", () => {
+  it("matches numbers written differently by different sources", () => {
+    expect(sameDocumentNumber("2026/000874", "874")).toBe(true);
+    expect(sameDocumentNumber("000874", "874")).toBe(true);
+    expect(sameDocumentNumber("874", "875")).toBe(false);
+    expect(sameDocumentNumber(null, "874")).toBe(false);
+    expect(sameDocumentNumber("s/n", "")).toBe(false);
   });
 });

@@ -10,6 +10,13 @@ import type { ExtractionResult, ValidationIssue } from "./schemas";
 
 export const AUTO_APPROVE_THRESHOLD = 0.9;
 
+/**
+ * Descriptive fields: doubt here is reported but does not block auto-approval, because
+ * a wrong value does not change what gets booked. Doubt on any other field (amounts,
+ * CNPJ/CPF, dates, keys, digitable line) always sends the document to review.
+ */
+const NON_BLOCKING_FIELDS = new Set(["bankName", "issuerName", "recipientName", "serviceDescription", "series"]);
+
 export interface Decision {
   status: "aprovado" | "revisao";
   /** 0..1, shown in the UI */
@@ -21,19 +28,20 @@ export function decide(result: ExtractionResult, issues: ValidationIssue[]): Dec
   const errors = issues.filter((i) => i.severity === "error");
   const warnings = issues.filter((i) => i.severity === "warning");
 
-  const penalty = errors.length * 0.35 + warnings.length * 0.1 + result.uncertainFields.length * 0.05;
+  const blockingUncertain = result.uncertainFields.filter((f) => !NON_BLOCKING_FIELDS.has(f));
+  const penalty = errors.length * 0.35 + warnings.length * 0.1 + blockingUncertain.length * 0.05;
   const score = Math.max(0, Math.min(1, result.extractorConfidence - penalty));
 
   const reasons: string[] = [];
   if (errors.length) reasons.push(`${errors.length} erro(s) de validação`);
   if (warnings.length) reasons.push(`${warnings.length} alerta(s)`);
-  if (result.uncertainFields.length) reasons.push(`Campos incertos: ${result.uncertainFields.join(", ")}`);
+  if (blockingUncertain.length) reasons.push(`Campos incertos: ${blockingUncertain.join(", ")}`);
   if (result.extractorConfidence < AUTO_APPROVE_THRESHOLD) reasons.push("Confiança da extração abaixo do limite");
 
   const approved =
     errors.length === 0 &&
     warnings.length === 0 &&
-    result.uncertainFields.length === 0 &&
+    blockingUncertain.length === 0 &&
     result.extractorConfidence >= AUTO_APPROVE_THRESHOLD;
 
   return { status: approved ? "aprovado" : "revisao", score: Math.round(score * 100) / 100, reasons };

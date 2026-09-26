@@ -63,7 +63,9 @@ export const inboundRouter = router({
       }
       const company = await getCompanyConfig(ctx.user.id);
       const d = input.extracted;
-      const issues = validateDocument(d, { companyDocument: company?.cnpj ?? null, method: doc.method ?? "llm" });
+      // Duplicate warnings come from the processor (they need the database), not from validateDocument
+      const carried = (doc.issues ?? []).filter((i) => i.code === "possible_duplicate");
+      const issues = [...validateDocument(d, { companyDocument: company?.cnpj ?? null, method: doc.method ?? "llm" }), ...carried];
       await updateInboundDocument(doc.id, {
         extracted: d,
         issues,
