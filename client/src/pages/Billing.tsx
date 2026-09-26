@@ -169,7 +169,7 @@ export default function Billing() {
                       </div>
                       <div className="flex items-center gap-4">
                         <span className="font-semibold text-sm">
-                          R$ {(invoice.amount / 100).toFixed(2)}
+                          {(invoice.amount / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                         </span>
                         <Badge
                           variant={statusCfg.variant}
