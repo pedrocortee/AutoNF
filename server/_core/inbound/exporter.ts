@@ -3,6 +3,7 @@
  * Accounting-system specific layouts will live in exporters/ (Fase D).
  */
 
+import type { Classification } from "./rules";
 import type { ExtractedDocument } from "./schemas";
 
 export interface ExportRow {
@@ -10,6 +11,8 @@ export interface ExportRow {
   status: string;
   method: string | null;
   document: ExtractedDocument;
+  company?: { document: string; name: string; externalCode: string | null } | null;
+  classification?: Classification | null;
 }
 
 const DOC_TYPE_LABEL: Record<string, string> = {
@@ -41,10 +44,10 @@ function cell(v: string | null | undefined): string {
 }
 
 const HEADER = [
-  "ID", "Tipo", "Número", "Série", "Chave de acesso", "Emissão", "Vencimento",
+  "ID", "Empresa (CNPJ/CPF)", "Empresa", "Código da empresa", "Tipo", "Número", "Série", "Chave de acesso", "Emissão", "Vencimento",
   "CNPJ/CPF emitente", "Emitente", "CNPJ/CPF destinatário", "Destinatário",
   "Valor total", "ICMS", "IPI", "PIS", "COFINS", "ISS", "IBS", "CBS",
-  "Linha digitável", "Descrição do serviço", "Leitura", "Status",
+  "Linha digitável", "Descrição do serviço", "Conta", "Centro de custo", "Histórico", "Regra", "Leitura", "Status",
 ];
 
 export function toCsv(rows: ExportRow[]): string {
@@ -54,6 +57,9 @@ export function toCsv(rows: ExportRow[]): string {
     lines.push(
       [
         String(r.id),
+        r.company?.document ?? "",
+        r.company?.name ?? "",
+        r.company?.externalCode ?? "",
         DOC_TYPE_LABEL[d.docType] ?? d.docType,
         d.number,
         d.series,
@@ -75,6 +81,10 @@ export function toCsv(rows: ExportRow[]): string {
         money(d.taxes.cbsCents),
         d.boleto?.digitableLine ? `="${d.boleto.digitableLine}"` : "",
         d.serviceDescription,
+        r.classification?.account ?? "",
+        r.classification?.costCenter ?? "",
+        r.classification?.history ?? "",
+        r.classification?.ruleName ?? "",
         r.method === "xml" ? "XML" : r.method === "llm" ? "IA" : "",
         r.status,
       ]

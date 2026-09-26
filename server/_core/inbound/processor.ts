@@ -2,7 +2,7 @@
  * Persists the pipeline result for one inbound document. Called by the queue worker.
  */
 
-import { getCompanyConfig } from "../../db";
+import { routingTargets } from "../../clientCompaniesDb";
 import {
   findActiveByAccessKey,
   findDuplicateCandidates,
@@ -30,8 +30,11 @@ export async function processInboundDocument(documentId: number, deps: PipelineD
     return;
   }
 
-  const company = await getCompanyConfig(doc.userId);
-  const outcome = await runPipeline(buf, company?.cnpj ?? null, deps);
+  // A document already assigned to a company (by hand, before a reprocess) is validated against it;
+  // otherwise any of the account's companies is an acceptable recipient.
+  const targets = await routingTargets(doc.userId);
+  const assigned = doc.companyId !== null ? targets.filter((t) => t.companyId === doc.companyId) : [];
+  const outcome = await runPipeline(buf, (assigned.length ? assigned : targets).map((t) => t.document), deps);
 
   if (outcome.kind === "ignored") {
     await transitionInbound(documentId, "descartado", { note: outcome.reason });
@@ -66,7 +69,12 @@ export async function processInboundDocument(documentId: number, deps: PipelineD
       decision.reasons.unshift(`Possível duplicado do #${dup.id}`);
     }
   }
+  // Route by recipient (tomador / destinatário / pagador). Unmatched documents stay without company
+  // and show up in review with the recipient_mismatch error.
+  const companyId = doc.companyId ?? targets.find((t) => t.document === d.recipient.document)?.companyId ?? null;
+
   await updateInboundDocument(documentId, {
+    companyId,
     docType: d.docType,
     accessKey: d.accessKey,
     issuerDocument: d.issuer.document,

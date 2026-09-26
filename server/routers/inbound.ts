@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, router } from "../_core/trpc";
-import { getCompanyConfig } from "../db";
+import { getClientCompany, routingTargets, rulesForCompany } from "../clientCompaniesDb";
 import {
   countInboundByStatus,
   getInboundDocument,
@@ -14,7 +14,11 @@ import {
 import { INBOUND_STATUSES } from "../../drizzle/inboundSchema";
 import { DOC_TYPES, extractedDocumentSchema } from "../_core/inbound/schemas";
 import { validateDocument } from "../_core/inbound/validators";
+import { classify } from "../_core/inbound/rules";
 import { enqueueInbound } from "../_core/inbound/queue";
+
+/** number = one company, null = documents without company, omitted = all */
+const companyFilter = z.number().int().nullable().optional();
 
 async function ownedDocument(id: number, userId: number) {
   const doc = await getInboundDocument(id, userId);
@@ -28,6 +32,7 @@ export const inboundRouter = router({
       z.object({
         status: z.enum(INBOUND_STATUSES).optional(),
         docType: z.enum(DOC_TYPES).optional(),
+        companyId: companyFilter,
         search: z.string().max(100).optional(),
         page: z.number().int().min(1).default(1),
         pageSize: z.number().int().min(1).max(100).default(25),
@@ -37,6 +42,7 @@ export const inboundRouter = router({
       const { items, total } = await listInboundDocuments(ctx.user.id, {
         status: input.status,
         docType: input.docType,
+        companyId: input.companyId,
         search: input.search?.trim() || undefined,
         limit: input.pageSize,
         offset: (input.page - 1) * input.pageSize,
@@ -44,29 +50,53 @@ export const inboundRouter = router({
       return { items, total, page: input.page, pageSize: input.pageSize };
     }),
 
-  counts: protectedProcedure.query(({ ctx }) => countInboundByStatus(ctx.user.id)),
+  counts: protectedProcedure
+    .input(z.object({ companyId: companyFilter }).optional())
+    .query(({ ctx, input }) => countInboundByStatus(ctx.user.id, input?.companyId)),
 
   get: protectedProcedure.input(z.object({ id: z.number().int() })).query(async ({ ctx, input }) => {
     const doc = await ownedDocument(input.id, ctx.user.id);
     const events = await listInboundEvents(doc.id);
     const { storageKey: _s, sha256: _h, ...safe } = doc;
-    return { document: safe, events };
+    const classification = doc.extracted
+      ? classify(doc.extracted, doc.companyId, await rulesForCompany(ctx.user.id, doc.companyId))
+      : null;
+    return { document: safe, events, classification };
   }),
 
-  /** Saves a reviewer's corrections and re-runs validation. Does not change status. */
+  /**
+   * Saves a reviewer's corrections (and optionally the company) and re-runs validation.
+   * Does not change status. companyId: number = assign, null = unassign, omitted = keep/auto-route.
+   */
   update: protectedProcedure
-    .input(z.object({ id: z.number().int(), extracted: extractedDocumentSchema }))
+    .input(z.object({ id: z.number().int(), extracted: extractedDocumentSchema, companyId: z.number().int().nullable().optional() }))
     .mutation(async ({ ctx, input }) => {
       const doc = await ownedDocument(input.id, ctx.user.id);
       if (doc.status !== "revisao" && doc.status !== "aprovado") {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Só é possível editar documentos em revisão ou aprovados" });
       }
-      const company = await getCompanyConfig(ctx.user.id);
+      if (input.companyId && !(await getClientCompany(input.companyId, ctx.user.id))) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Empresa não encontrada" });
+      }
       const d = input.extracted;
+      const targets = await routingTargets(ctx.user.id);
+      const companyId =
+        input.companyId !== undefined
+          ? input.companyId
+          : doc.companyId ?? targets.find((t) => t.document === d.recipient.document)?.companyId ?? null;
+      const assigned = companyId !== null ? targets.filter((t) => t.companyId === companyId) : [];
+
       // Duplicate warnings come from the processor (they need the database), not from validateDocument
       const carried = (doc.issues ?? []).filter((i) => i.code === "possible_duplicate");
-      const issues = [...validateDocument(d, { companyDocument: company?.cnpj ?? null, method: doc.method ?? "llm" }), ...carried];
+      const issues = [
+        ...validateDocument(d, {
+          companyDocuments: (assigned.length ? assigned : targets).map((t) => t.document),
+          method: doc.method ?? "llm",
+        }),
+        ...carried,
+      ];
       await updateInboundDocument(doc.id, {
+        companyId,
         extracted: d,
         issues,
         docType: d.docType,
@@ -78,7 +108,7 @@ export const inboundRouter = router({
         dueDate: d.dueDate,
         totalCents: d.totalCents,
       });
-      return { issues };
+      return { issues, companyId };
     }),
 
   approve: protectedProcedure.input(z.object({ id: z.number().int() })).mutation(async ({ ctx, input }) => {
@@ -117,6 +147,6 @@ export const inboundRouter = router({
   }),
 
   stats: protectedProcedure
-    .input(z.object({ month: z.string().regex(/^\d{4}-\d{2}$/).optional() }))
-    .query(({ ctx, input }) => inboundStats(ctx.user.id, input.month)),
+    .input(z.object({ month: z.string().regex(/^\d{4}-\d{2}$/).optional(), companyId: companyFilter }))
+    .query(({ ctx, input }) => inboundStats(ctx.user.id, input.month, input.companyId)),
 });

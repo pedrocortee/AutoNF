@@ -38,7 +38,8 @@ async function extractXml(buf: Buffer, docType: "nfe" | "cte" | "nfse"): Promise
 
 export async function runPipeline(
   buf: Buffer,
-  companyDocument: string | null,
+  /** Documents of the account's companies (possible recipients) */
+  companyDocuments: string[],
   deps: PipelineDeps = {}
 ): Promise<PipelineOutcome> {
   const c = classify(buf);
@@ -63,7 +64,7 @@ export async function runPipeline(
   }
 
   const issues = validateDocument(extraction.document, {
-    companyDocument,
+    companyDocuments,
     method: extraction.method,
     today: deps.today,
   });

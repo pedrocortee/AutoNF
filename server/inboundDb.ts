@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, like, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, like, ne, or, sql, type SQL } from "drizzle-orm";
 import { getDb } from "./db";
 import {
   inboundDocumentEvents,
@@ -116,9 +116,18 @@ export async function findDuplicateCandidates(
     .limit(5);
 }
 
+/** undefined = all companies, null = documents not routed to any company */
+export type CompanyFilter = number | null | undefined;
+
+function companyCond(companyId: CompanyFilter): SQL | undefined {
+  if (companyId === undefined) return undefined;
+  return companyId === null ? isNull(inboundDocuments.companyId) : eq(inboundDocuments.companyId, companyId);
+}
+
 export interface InboundListFilters {
   status?: InboundStatus;
   docType?: NonNullable<InboundDocument["docType"]>;
+  companyId?: CompanyFilter;
   search?: string;
   limit: number;
   offset: number;
@@ -128,6 +137,8 @@ export async function listInboundDocuments(userId: number, f: InboundListFilters
   const conds = [eq(inboundDocuments.userId, userId)];
   if (f.status) conds.push(eq(inboundDocuments.status, f.status));
   if (f.docType) conds.push(eq(inboundDocuments.docType, f.docType));
+  const cc = companyCond(f.companyId);
+  if (cc) conds.push(cc);
   if (f.search) {
     const q = `%${f.search}%`;
     conds.push(
@@ -145,6 +156,7 @@ export async function listInboundDocuments(userId: number, f: InboundListFilters
     d
       .select({
         id: inboundDocuments.id,
+        companyId: inboundDocuments.companyId,
         status: inboundDocuments.status,
         docType: inboundDocuments.docType,
         source: inboundDocuments.source,
@@ -168,20 +180,22 @@ export async function listInboundDocuments(userId: number, f: InboundListFilters
   return { items, total: Number(total) };
 }
 
-export async function countInboundByStatus(userId: number): Promise<Record<InboundStatus, number>> {
+export async function countInboundByStatus(userId: number, companyId?: CompanyFilter): Promise<Record<InboundStatus, number>> {
   const rows = await (await db())
     .select({ status: inboundDocuments.status, n: sql<number>`count(*)` })
     .from(inboundDocuments)
-    .where(eq(inboundDocuments.userId, userId))
+    .where(and(eq(inboundDocuments.userId, userId), companyCond(companyId)))
     .groupBy(inboundDocuments.status);
   const out = { recebido: 0, processando: 0, revisao: 0, aprovado: 0, exportado: 0, erro: 0, descartado: 0 };
   for (const r of rows) out[r.status] = Number(r.n);
   return out;
 }
 
-export async function getInboundForExport(userId: number, ids?: number[]): Promise<InboundDocument[]> {
+export async function getInboundForExport(userId: number, ids?: number[], companyId?: CompanyFilter): Promise<InboundDocument[]> {
   const conds = [eq(inboundDocuments.userId, userId)];
   conds.push(ids?.length ? inArray(inboundDocuments.id, ids) : eq(inboundDocuments.status, "aprovado"));
+  const cc = companyCond(companyId);
+  if (cc) conds.push(cc);
   return (await db()).select().from(inboundDocuments).where(and(...conds)).orderBy(inboundDocuments.id);
 }
 
@@ -193,8 +207,10 @@ export async function markInboundExported(ids: number[], actorUserId: number): P
 }
 
 /** Aggregates for the savings panel. Month filter is on createdAt (YYYY-MM). */
-export async function inboundStats(userId: number, month?: string) {
+export async function inboundStats(userId: number, month?: string, companyId?: CompanyFilter) {
   const conds = [eq(inboundDocuments.userId, userId), ne(inboundDocuments.status, "descartado")];
+  const cc = companyCond(companyId);
+  if (cc) conds.push(cc);
   if (month) conds.push(sql`DATE_FORMAT(${inboundDocuments.createdAt}, '%Y-%m') = ${month}`);
   const [row] = await (await db())
     .select({
@@ -213,4 +229,12 @@ export async function inboundStats(userId: number, month?: string) {
     pendingReview: Number(row?.pendingReview ?? 0),
     llmCostMicros: Number(row?.llmCostMicros ?? 0),
   };
+}
+
+/** Documents of a company still waiting for review (used to re-validate after routing changes). */
+export async function listInReviewForCompany(userId: number, companyId: number): Promise<InboundDocument[]> {
+  return (await db())
+    .select()
+    .from(inboundDocuments)
+    .where(and(eq(inboundDocuments.userId, userId), eq(inboundDocuments.companyId, companyId), eq(inboundDocuments.status, "revisao")));
 }

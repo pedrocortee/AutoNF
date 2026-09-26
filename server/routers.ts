@@ -1,5 +1,7 @@
 import { systemRouter } from "./_core/systemRouter";
 import { inboundRouter } from "./routers/inbound";
+import { companiesRouter } from "./routers/companies";
+import { rulesRouter } from "./routers/rules";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -70,6 +72,8 @@ import { decryptData } from "./_core/crypto";
 export const appRouter = router({
   system: systemRouter,
   inbound: inboundRouter,
+  companies: companiesRouter,
+  rules: rulesRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(() => {

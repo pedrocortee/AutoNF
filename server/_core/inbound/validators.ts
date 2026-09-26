@@ -12,8 +12,8 @@ import {
 import type { ExtractedDocument, ExtractionMethod, ValidationIssue } from "./schemas";
 
 export interface ValidationContext {
-  /** CNPJ/CPF of the company that owns this inbox (the expected recipient) */
-  companyDocument: string | null;
+  /** CNPJ/CPF of the account's companies (expected recipients). Empty = unknown, skip the check. */
+  companyDocuments: string[];
   method: ExtractionMethod;
   /** Reference "today" (injectable for tests), ISO date */
   today?: string;
@@ -42,8 +42,15 @@ export function validateDocument(doc: ExtractedDocument, ctx: ValidationContext)
   if (FISCAL_TYPES.has(doc.docType)) {
     if (!doc.recipient.document) {
       add("error", "recipient_missing", "recipient.document", "CNPJ/CPF do destinatário não encontrado");
-    } else if (ctx.companyDocument && doc.recipient.document !== ctx.companyDocument) {
-      add("error", "recipient_mismatch", "recipient.document", "Documento não é destinado a esta empresa");
+    } else if (ctx.companyDocuments.length > 0 && !ctx.companyDocuments.includes(doc.recipient.document)) {
+      add(
+        "error",
+        "recipient_mismatch",
+        "recipient.document",
+        ctx.companyDocuments.length === 1
+          ? "Documento não é destinado a esta empresa"
+          : "Destinatário não é nenhuma das empresas cadastradas"
+      );
     }
   }
 

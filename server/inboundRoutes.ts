@@ -10,6 +10,8 @@ import { enqueueInbound } from "./_core/inbound/queue";
 import { toCsv } from "./_core/inbound/exporter";
 import { readObject } from "./_core/storage";
 import { getInboundDocument, getInboundForExport, markInboundExported } from "./inboundDb";
+import { companiesByIds, rulesForCompanies } from "./clientCompaniesDb";
+import { classify } from "./_core/inbound/rules";
 
 const MAX_UPLOAD = `${Number(process.env.INBOUND_MAX_UPLOAD_MB ?? 100)}mb`;
 
@@ -76,17 +78,38 @@ inboundRoutes.get("/api/inbound/:id/file", async (req, res) => {
   res.send(buf);
 });
 
-/** Body JSON: { ids?: number[], markExported?: boolean }. Without ids exports every approved document. */
+/**
+ * Body JSON: { ids?: number[], companyId?: number | null, markExported?: boolean }.
+ * Without ids exports every approved document (of one company when companyId is given).
+ */
 inboundRoutes.post("/api/inbound/export", express.json(), async (req, res) => {
   const userId = await requireUser(req, res);
   if (userId === null) return;
 
   const ids: number[] | undefined = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Number.isInteger) : undefined;
-  const docs = (await getInboundForExport(userId, ids)).filter(
+  const rawCompany = req.body?.companyId;
+  const companyId = rawCompany === null ? null : Number.isInteger(rawCompany) ? (rawCompany as number) : undefined;
+  const docs = (await getInboundForExport(userId, ids, companyId)).filter(
     (d) => d.extracted && (d.status === "aprovado" || d.status === "exportado")
   );
 
-  const csv = toCsv(docs.map((d) => ({ id: d.id, status: d.status, method: d.method, document: d.extracted! })));
+  const [companies, rules] = await Promise.all([
+    companiesByIds(userId, [...new Set(docs.map((d) => d.companyId).filter((c): c is number => c !== null))]),
+    rulesForCompanies(userId),
+  ]);
+  const csv = toCsv(
+    docs.map((d) => {
+      const c = d.companyId !== null ? companies.get(d.companyId) : undefined;
+      return {
+        id: d.id,
+        status: d.status,
+        method: d.method,
+        document: d.extracted!,
+        company: c ? { document: c.document, name: c.name, externalCode: c.externalCode } : null,
+        classification: classify(d.extracted!, d.companyId, rules),
+      };
+    })
+  );
   if (req.body?.markExported !== false) {
     await markInboundExported(docs.filter((d) => d.status === "aprovado").map((d) => d.id), userId);
   }

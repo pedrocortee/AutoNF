@@ -66,18 +66,18 @@ describe("checksums", () => {
 describe("validateDocument", () => {
   it("passes a correct NF-e addressed to the company", async () => {
     const doc = await parseNFeXml(nfeProcXml());
-    expect(validateDocument(doc, { companyDocument: OFFICE_CLIENT_CNPJ, method: "xml", today: TODAY })).toEqual([]);
+    expect(validateDocument(doc, { companyDocuments: [OFFICE_CLIENT_CNPJ], method: "xml", today: TODAY })).toEqual([]);
   });
 
   it("flags NF-e addressed to another company", async () => {
     const doc = await parseNFeXml(nfeProcXml());
-    const issues = validateDocument(doc, { companyDocument: "11222333000181", method: "xml", today: TODAY });
+    const issues = validateDocument(doc, { companyDocuments: ["11222333000181"], method: "xml", today: TODAY });
     expect(codes(issues)).toContain("recipient_mismatch");
   });
 
   it("flags access key whose CNPJ differs from the issuer", async () => {
     const doc = await parseNFeXml(nfeProcXml({ emit: "11222333000181" }));
-    const issues = validateDocument(doc, { companyDocument: OFFICE_CLIENT_CNPJ, method: "xml", today: TODAY });
+    const issues = validateDocument(doc, { companyDocuments: [OFFICE_CLIENT_CNPJ], method: "xml", today: TODAY });
     expect(codes(issues)).toContain("access_key_issuer_mismatch");
   });
 
@@ -86,7 +86,7 @@ describe("validateDocument", () => {
     doc.issuer.document = "11222333000182";
     doc.totalCents = 1000;
     doc.issueDate = "2026-12-01";
-    const issues = validateDocument(doc, { companyDocument: null, method: "llm", today: TODAY });
+    const issues = validateDocument(doc, { companyDocuments: [], method: "llm", today: TODAY });
     expect(codes(issues)).toEqual(expect.arrayContaining(["issuer_invalid", "issue_date_future"]));
   });
 
@@ -96,8 +96,8 @@ describe("validateDocument", () => {
     doc.issueDate = "2026-09-01";
     doc.totalCents = 1000;
     doc.items = [{ description: "x", quantity: 1, unitValueCents: 900, totalCents: 900, ncm: null, cfop: null }];
-    expect(codes(validateDocument(doc, { companyDocument: null, method: "llm", today: TODAY }))).toContain("items_total_mismatch");
-    expect(codes(validateDocument(doc, { companyDocument: null, method: "xml", today: TODAY }))).not.toContain("items_total_mismatch");
+    expect(codes(validateDocument(doc, { companyDocuments: [], method: "llm", today: TODAY }))).toContain("items_total_mismatch");
+    expect(codes(validateDocument(doc, { companyDocuments: [], method: "xml", today: TODAY }))).not.toContain("items_total_mismatch");
   });
 
   it("validates boleto line against the extracted amount", () => {
@@ -106,7 +106,7 @@ describe("validateDocument", () => {
     doc.dueDate = "2026-10-10";
     doc.totalCents = 999;
     doc.boleto = { digitableLine: BOLETO_LINE_VALID, bankName: "Banco do Brasil" };
-    const issues = validateDocument(doc, { companyDocument: null, method: "llm", today: TODAY });
+    const issues = validateDocument(doc, { companyDocuments: [], method: "llm", today: TODAY });
     expect(codes(issues)).toContain("boleto_amount_mismatch");
   });
 });
