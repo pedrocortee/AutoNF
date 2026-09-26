@@ -59,9 +59,9 @@ export const billingDeps: BillingDeps = {
     }
   },
   firstPaymentUrl: (id) => firstPaymentUrl(id),
-  async confirmedPayment(id) {
-    const { data } = await listAsaasPayments({ subscription: id, limit: 10 });
-    return data.find((p) => p.status === "CONFIRMED" || p.status === "RECEIVED") ?? null;
+  async confirmedPayments(id) {
+    const { data } = await listAsaasPayments({ subscription: id, limit: 20 });
+    return data.filter((p) => p.status === "CONFIRMED" || p.status === "RECEIVED");
   },
   cancelAsaas: cancelAsaasSubscription,
   isProduction: () => process.env.NODE_ENV === "production",

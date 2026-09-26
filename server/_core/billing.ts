@@ -41,7 +41,8 @@ export interface BillingDeps {
   createAsaasSubscription(customerId: string, plan: Plan): Promise<{ id: string }>;
   asaasSubscriptionStatus(asaasSubscriptionId: string): Promise<string | null>;
   firstPaymentUrl(asaasSubscriptionId: string): Promise<string | null>;
-  confirmedPayment(asaasSubscriptionId: string): Promise<AsaasPaymentLike | null>;
+  /** Payments Asaas confirmed for the subscription (newest first) */
+  confirmedPayments(asaasSubscriptionId: string): Promise<AsaasPaymentLike[]>;
   cancelAsaas(asaasSubscriptionId: string): Promise<void>;
   /** Paid plans without Asaas are activated directly only outside production */
   isProduction(): boolean;
@@ -246,10 +247,13 @@ export async function handleAsaasEvent(
 export async function syncPendingPayment(deps: BillingDeps, userId: number): Promise<{ activated: boolean; planName: string | null }> {
   const live = await deps.liveAsaasSubscriptions(userId);
   for (const s of live.filter((x) => x.status === "pending" || x.status === "overdue")) {
-    const payment = await deps.confirmedPayment(s.asaasSubscriptionId);
+    const invoices = await deps.invoicesFor(s.asaasSubscriptionId);
+    const recorded = new Set(invoices.filter((i) => i.status === "confirmed").map((i) => i.asaasPaymentId));
+    // Only a payment this app has not accounted for yet (an older paid charge is not news)
+    const payment = (await deps.confirmedPayments(s.asaasSubscriptionId)).find((p) => !recorded.has(p.id));
     if (!payment) continue;
-    const outcome = await activateFromPayment(deps, s.asaasSubscriptionId, payment, await deps.invoicesFor(s.asaasSubscriptionId));
-    if (outcome !== "unknown-plan") return { activated: true, planName: s.planName };
+    const outcome = await activateFromPayment(deps, s.asaasSubscriptionId, payment, invoices);
+    if (outcome === "activated" || outcome === "renewed") return { activated: true, planName: s.planName };
   }
   return { activated: false, planName: null };
 }

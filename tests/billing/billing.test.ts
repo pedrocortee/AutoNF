@@ -73,10 +73,11 @@ function fakeWorld(opts: { asaas?: boolean; production?: boolean } = {}) {
     },
     asaasSubscriptionStatus: async (id) => asaas.get(id)?.status ?? null,
     firstPaymentUrl: async (id) => asaas.get(id)?.payments.find((p) => p.status !== "CONFIRMED")?.invoiceUrl ?? null,
-    confirmedPayment: async (id) => {
-      const p = asaas.get(id)?.payments.find((x) => x.status === "CONFIRMED");
-      return p ? { id: p.id, subscription: id, value: p.value, billingType: "CREDIT_CARD" } : null;
-    },
+    confirmedPayments: async (id) =>
+      (asaas.get(id)?.payments ?? [])
+        .filter((x) => x.status === "CONFIRMED")
+        .reverse()
+        .map((p) => ({ id: p.id, subscription: id, value: p.value, billingType: "CREDIT_CARD" })),
     cancelAsaas: async (id) => {
       cancelledInAsaas.push(id);
       const s = asaas.get(id);
@@ -243,6 +244,18 @@ describe("manual sync and cancellation", () => {
     w.pay("sub_1");
     expect(await syncPendingPayment(w.deps, 7)).toEqual({ activated: true, planName: "Starter" });
     expect((await w.current())?.plan.name).toBe("Starter");
+  });
+
+  it("'Já paguei' on an overdue renewal ignores the old paid charge and waits for the new one", async () => {
+    const w = fakeWorld();
+    await checkout(w.deps, 7, "Starter");
+    await handleAsaasEvent(w.deps, "PAYMENT_CONFIRMED", w.pay("sub_1"));
+    await handleAsaasEvent(w.deps, "PAYMENT_OVERDUE", w.addRenewal("sub_1"));
+    expect(await syncPendingPayment(w.deps, 7)).toEqual({ activated: false, planName: null });
+    expect((await w.current())?.status).toBe("paused");
+    w.pay("sub_1", 2);
+    expect(await syncPendingPayment(w.deps, 7)).toEqual({ activated: true, planName: "Starter" });
+    expect((await w.current())?.status).toBe("active");
   });
 
   it("cancelling the plan stops the Asaas subscription", async () => {
