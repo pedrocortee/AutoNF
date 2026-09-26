@@ -147,15 +147,22 @@ export async function getInvoiceById(invoiceId: number) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-/**
- * Create a new invoice
- */
 export async function createInvoice(invoice: InsertInvoice) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
   const result = await db.insert(invoices).values(invoice);
   return result;
+}
+
+export async function deleteExpiredInvoices(): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+
+  const result = await db.delete(invoices).where(
+    sql`${invoices.expiresAt} IS NOT NULL AND ${invoices.expiresAt} <= NOW()`
+  );
+  return (result as any)[0].affectedRows ?? 0;
 }
 
 /**
@@ -456,6 +463,7 @@ export async function getUserSubscription(userId: number): Promise<(Subscription
     .from(subscriptions)
     .innerJoin(plans, eq(subscriptions.planId, plans.id))
     .where(and(eq(subscriptions.userId, userId), eq(subscriptions.status, "active")))
+    .orderBy(desc(subscriptions.id))
     .limit(1);
 
   if (result.length === 0) return undefined;

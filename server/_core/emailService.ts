@@ -164,6 +164,53 @@ export async function sendInvoiceSuccessEmail(opts: {
   });
 }
 
+export async function sendTestEmail(opts: {
+  toEmail: string;
+  companyName: string;
+}): Promise<void> {
+  const transport = createTransport();
+  if (!transport) throw new Error("Nenhum provedor de email configurado (RESEND_API_KEY ou SMTP_HOST)");
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,sans-serif;">
+  <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1);">
+    <div style="background:#1e293b;padding:32px;text-align:center;">
+      <p style="color:#94a3b8;margin:0;font-size:12px;text-transform:uppercase;letter-spacing:.08em;">AutoNF</p>
+      <h1 style="color:#fff;margin:8px 0 0;font-size:22px;">Email de Teste</h1>
+    </div>
+    <div style="padding:32px;">
+      <p style="color:#475569;margin:0 0 16px;">
+        Olá! Este é um email de teste enviado pelo <strong style="color:#1e293b;">AutoNF</strong>.
+      </p>
+      <p style="color:#475569;margin:0 0 24px;">
+        Sua configuração de email está funcionando corretamente. Os emails de NFS-e emitida
+        serão enviados neste formato, com o PDF da nota fiscal em anexo.
+      </p>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin-bottom:24px;">
+        <p style="color:#15803d;font-weight:bold;margin:0 0 4px;">✓ Configuração OK</p>
+        <p style="color:#166534;font-size:13px;margin:0;">Empresa: ${opts.companyName}</p>
+      </div>
+      <p style="color:#94a3b8;font-size:12px;margin:0;">
+        Este é um email automático de teste. Nenhuma ação é necessária.
+      </p>
+    </div>
+    <div style="background:#f8fafc;padding:16px;text-align:center;border-top:1px solid #e2e8f0;">
+      <p style="color:#94a3b8;font-size:11px;margin:0;">Emitido por AutoNF · autonf.com.br</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  await transport.sendMail({
+    from: `AutoNF <${FROM_ADDRESS}>`,
+    to: opts.toEmail,
+    subject: "✓ Teste de email — AutoNF",
+    html,
+  });
+}
+
 export async function sendInvoiceErrorEmail(opts: {
   toEmail: string;
   invoice: Invoice;

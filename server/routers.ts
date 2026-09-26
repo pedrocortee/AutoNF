@@ -25,6 +25,7 @@ import {
   getAsaasCustomerByUserId,
   createBillingInvoice,
   listBillingInvoices,
+  updateBillingInvoice,
   updateSubscriptionByUserId,
   getUserByIdFromDb,
   saveNFSeNumber,
@@ -43,6 +44,7 @@ import {
   upsertNotificationPrefs,
 } from "./db";
 import { generateNFSePDF } from "./_core/pdfGenerator";
+import { sendTestEmail } from "./_core/emailService";
 import { savePDF, readPDF } from "./_core/storage";
 import { dispatchWebhookEvent } from "./_core/webhookDispatcher";
 import crypto from "crypto";
@@ -52,6 +54,7 @@ import {
   createAsaasCustomer,
   createAsaasSubscription,
   cancelAsaasSubscription,
+  listAsaasPayments,
   isAsaasConfigured,
 } from "./_core/asaas";
 import {
@@ -139,6 +142,11 @@ export const appRouter = router({
         const valueInCents = Math.round(input.value * 100);
         const retISS = Math.round(valueInCents * issRateDecimal);
 
+        const isFree = subscription.plan.pricePerMonth === 0;
+        const expiresAt = isFree
+          ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+          : null;
+
         const result = await createInvoice({
           userId: ctx.user.id,
           clientName: input.clientName,
@@ -155,6 +163,7 @@ export const appRouter = router({
           retPIS: Math.round((input.retentions?.pis ?? 0) * 100),
           retINSS: Math.round((input.retentions?.inss ?? 0) * 100),
           retISS,
+          ...(expiresAt && { expiresAt }),
         });
 
         const invoiceId = (result as any)[0].insertId;
@@ -480,7 +489,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Erro ao criar cliente no Asaas" });
         }
 
-        // Create Asaas subscription (UNDEFINED billing type → user chooses on checkout page)
+        // Create Asaas subscription with credit card only (recurring)
         const asaasSub = await createAsaasSubscription({
           customerId: asaasCustomerRecord.asaasCustomerId,
           value: plan.pricePerMonth / 100,
@@ -505,6 +514,37 @@ export const appRouter = router({
           asaasSubscriptionId: asaasSub.id,
         };
       }),
+
+    syncSubscription: protectedProcedure.mutation(async ({ ctx }) => {
+      if (!isAsaasConfigured()) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Asaas não configurado" });
+      }
+
+      const invoices = await listBillingInvoices(ctx.user.id);
+      const pending = invoices.find(inv => inv.status === "pending" && inv.asaasSubscriptionId);
+      if (!pending) {
+        const active = await getUserSubscription(ctx.user.id);
+        if (active) return { activated: false, alreadyActive: true, planName: active.plan.name };
+        throw new TRPCError({ code: "NOT_FOUND", message: "Nenhuma assinatura pendente encontrada" });
+      }
+
+      const payments = await listAsaasPayments({ subscription: pending.asaasSubscriptionId!, limit: 5 });
+      const confirmed = payments.data.find(p => p.status === "CONFIRMED" || p.status === "RECEIVED");
+
+      if (!confirmed) return { activated: false, alreadyActive: false, planName: null as string | null };
+
+      await updateBillingInvoice(pending.id, {
+        status: "confirmed",
+        paymentMethod: confirmed.billingType,
+        asaasPaymentId: confirmed.id,
+      });
+
+      const plan = await getPlanByName(pending.planName);
+      if (!plan) throw new TRPCError({ code: "NOT_FOUND", message: "Plano não encontrado" });
+
+      await createSubscription(ctx.user.id, plan.id);
+      return { activated: true, alreadyActive: false, planName: plan.name };
+    }),
 
     cancelSubscription: protectedProcedure.mutation(async ({ ctx }) => {
       const subscription = await getUserSubscription(ctx.user.id);
@@ -762,6 +802,17 @@ export const appRouter = router({
           ...(input.defaultTomadorEmail !== undefined && {
             defaultTomadorEmail: input.defaultTomadorEmail ?? undefined,
           }),
+        });
+        return { success: true };
+      }),
+
+    sendTestEmail: protectedProcedure
+      .input(z.object({ toEmail: z.string().email() }))
+      .mutation(async ({ ctx, input }) => {
+        const company = await getCompanyConfig(ctx.user.id);
+        await sendTestEmail({
+          toEmail: input.toEmail,
+          companyName: company?.companyName ?? "AutoNF",
         });
         return { success: true };
       }),

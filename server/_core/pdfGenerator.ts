@@ -7,6 +7,12 @@ export interface PDFInvoiceData {
   invoice: Invoice;
   company: CompanyConfig;
   nfseNumber?: string | null;
+  /** Código de verificação retornado pela prefeitura (codigoVerificacao no XML) */
+  verificationCode?: string | null;
+  /** URL oficial de consulta por município. Se omitida, usa fallback genérico. */
+  verificationUrl?: string | null;
+  /** Regime tributário do prestador (e.g. "Simples Nacional", "Lucro Presumido") */
+  taxRegime?: string | null;
 }
 
 function formatCurrency(cents: number): string {
@@ -22,13 +28,14 @@ function formatDate(date: Date | string): string {
 }
 
 export async function generateNFSePDF(data: PDFInvoiceData): Promise<Buffer> {
-  const { invoice, company, nfseNumber } = data;
+  const { invoice, company, nfseNumber, verificationCode, verificationUrl, taxRegime } = data;
 
-  const qrVerificationUrl = nfseNumber
-    ? `https://nfse.${company.municipality.toLowerCase().replace(/\s+/g, "")}.rs.gov.br/verificar?nfse=${nfseNumber}&cnpj=${company.cnpj}`
-    : `https://autonf.com.br/verificar/${invoice.id}`;
+  const qrUrl = verificationUrl
+    ?? (nfseNumber
+      ? `https://nfse.${company.municipality.toLowerCase().replace(/\s+/g, "")}.${company.state.toLowerCase()}.gov.br/verificar?nfse=${nfseNumber}&cnpj=${company.cnpj}`
+      : `https://autonf.com.br/verificar/${invoice.id}`);
 
-  const qrCodeDataUrl = await QRCode.toDataURL(qrVerificationUrl, {
+  const qrCodeDataUrl = await QRCode.toDataURL(qrUrl, {
     width: 120,
     margin: 1,
     color: { dark: "#1e293b", light: "#ffffff" },
@@ -57,26 +64,36 @@ export async function generateNFSePDF(data: PDFInvoiceData): Promise<Buffer> {
     doc
       .fontSize(10)
       .font("Helvetica")
-      .text("NFS-e — Emitida via AutoNF", 70, 92, { width: 460, align: "center" });
+      .text(`${company.municipality} — ${company.state} | NFS-e`, 70, 92, { width: 460, align: "center" });
 
-    // ── NFS-e Number badge ───────────────────────────────────────────────────
+    // ── NFS-e Number + código de verificação badge ───────────────────────────
+    const badgeHeight = verificationCode ? 52 : 32;
     const badgeY = 138;
+
     if (nfseNumber) {
       doc
-        .rect(50, badgeY, doc.page.width - 100, 32)
+        .rect(50, badgeY, doc.page.width - 100, badgeHeight)
         .fillColor("#f0fdf4")
         .strokeColor("#16a34a")
-        .lineWidth(1)
+        .lineWidth(1.5)
         .fillAndStroke();
 
       doc
         .fillColor("#15803d")
-        .fontSize(12)
+        .fontSize(14)
         .font("Helvetica-Bold")
         .text(`NFS-e Nº ${nfseNumber}`, 70, badgeY + 10, { width: 460, align: "center" });
+
+      if (verificationCode) {
+        doc
+          .fillColor("#166534")
+          .fontSize(9)
+          .font("Helvetica")
+          .text(`Código de Verificação: ${verificationCode}`, 70, badgeY + 31, { width: 460, align: "center" });
+      }
     }
 
-    const sectionStart = nfseNumber ? 190 : 145;
+    const sectionStart = nfseNumber ? badgeY + badgeHeight + 18 : 145;
 
     // ── Prestador Section ────────────────────────────────────────────────────
     doc
@@ -108,10 +125,9 @@ export async function generateNFSePDF(data: PDFInvoiceData): Promise<Buffer> {
     const tomadorY = sectionStart + 120;
 
     doc
-      .fillColor("#1e293b")
+      .fillColor("#64748b")
       .fontSize(8)
       .font("Helvetica-Bold")
-      .fillColor("#64748b")
       .text("TOMADOR DE SERVIÇOS", 65, tomadorY);
 
     doc
@@ -119,6 +135,14 @@ export async function generateNFSePDF(data: PDFInvoiceData): Promise<Buffer> {
       .fontSize(13)
       .font("Helvetica-Bold")
       .text(invoice.clientName, 65, tomadorY + 14);
+
+    if (invoice.takerCPFCNPJ) {
+      doc
+        .fontSize(9)
+        .font("Helvetica")
+        .fillColor("#475569")
+        .text(`${invoice.takerType ?? "CPF/CNPJ"}: ${invoice.takerCPFCNPJ}`, 65, tomadorY + 30);
+    }
 
     // ── Service Details ──────────────────────────────────────────────────────
     const serviceY = tomadorY + 60;
@@ -144,6 +168,7 @@ export async function generateNFSePDF(data: PDFInvoiceData): Promise<Buffer> {
 
     // ── Competence + Dates ───────────────────────────────────────────────────
     const datesY = serviceY + 80;
+
     doc
       .fillColor("#64748b")
       .fontSize(8)
@@ -158,8 +183,40 @@ export async function generateNFSePDF(data: PDFInvoiceData): Promise<Buffer> {
       .text(invoice.competenceMonth, 65, datesY + 14)
       .text(formatDate(invoice.processedAt ?? invoice.createdAt), 220, datesY + 14);
 
+    // ── Dados Fiscais (LC 116/2003, ISS, Regime) ─────────────────────────────
+    const fiscalY = datesY + 42;
+
+    doc
+      .rect(50, fiscalY, doc.page.width - 100, 1)
+      .fillColor("#e2e8f0")
+      .fill();
+
+    const issRate = parseFloat(company.issRate ?? "5.00");
+
+    doc
+      .fillColor("#64748b")
+      .fontSize(8)
+      .font("Helvetica-Bold")
+      .text("CÓDIGO DO SERVIÇO (LC 116/2003)", 65, fiscalY + 10)
+      .text("ALÍQUOTA ISS", 300, fiscalY + 10);
+
+    if (taxRegime) {
+      doc.text("REGIME TRIBUTÁRIO", 420, fiscalY + 10);
+    }
+
+    doc
+      .fillColor("#1e293b")
+      .fontSize(10)
+      .font("Helvetica")
+      .text(company.cTribNac, 65, fiscalY + 23)
+      .text(`${issRate.toFixed(2).replace(".", ",")}%`, 300, fiscalY + 23);
+
+    if (taxRegime) {
+      doc.text(taxRegime, 420, fiscalY + 23);
+    }
+
     // ── Values Table ─────────────────────────────────────────────────────────
-    const tableY = datesY + 55;
+    const tableY = fiscalY + 48;
 
     doc
       .rect(50, tableY, doc.page.width - 100, 30)
@@ -195,11 +252,10 @@ export async function generateNFSePDF(data: PDFInvoiceData): Promise<Buffer> {
 
     let rowY = tableY + 30;
     rows.forEach(([label, value], i) => {
-      if (i % 2 === 0) {
-        doc.rect(50, rowY, doc.page.width - 100, 22).fillColor("#ffffff").fill();
-      } else {
-        doc.rect(50, rowY, doc.page.width - 100, 22).fillColor("#f8fafc").fill();
-      }
+      doc
+        .rect(50, rowY, doc.page.width - 100, 22)
+        .fillColor(i % 2 === 0 ? "#ffffff" : "#f8fafc")
+        .fill();
 
       doc
         .fillColor(value < 0 ? "#dc2626" : "#1e293b")
@@ -214,7 +270,6 @@ export async function generateNFSePDF(data: PDFInvoiceData): Promise<Buffer> {
       rowY += 22;
     });
 
-    // Total row
     doc
       .rect(50, rowY, doc.page.width - 100, 32)
       .fillColor("#1e293b")
@@ -243,10 +298,10 @@ export async function generateNFSePDF(data: PDFInvoiceData): Promise<Buffer> {
       .fontSize(7)
       .font("Helvetica")
       .text("Consulta de autenticidade:", 175, footerY + 10)
-      .text(qrVerificationUrl, 175, footerY + 22, { width: 310 })
+      .text(qrUrl, 175, footerY + 22, { width: 310 })
       .fillColor("#94a3b8")
-      .text("Documento gerado por AutoNF — autonf.com.br", 175, footerY + 50)
-      .text(`Gerado em: ${formatDate(new Date())} | ID Interno: #${invoice.id}`, 175, footerY + 64);
+      .text(`ID Interno: #${invoice.id} | Gerado em: ${formatDate(new Date())}`, 175, footerY + 50)
+      .text("Emitido via AutoNF — autonf.com.br", 175, footerY + 63);
 
     doc.end();
   });

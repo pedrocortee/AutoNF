@@ -110,7 +110,7 @@ export default function InvoiceDetail() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-12">
-          <div className="animate-pulse text-slate-400">Carregando...</div>
+          <div className="animate-pulse text-slate-400 dark:text-slate-500">Carregando...</div>
         </div>
       </DashboardLayout>
     );
@@ -120,7 +120,7 @@ export default function InvoiceDetail() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-12">
-          <div className="animate-pulse text-slate-400">Carregando...</div>
+          <div className="animate-pulse text-slate-400 dark:text-slate-500">Carregando...</div>
         </div>
       </DashboardLayout>
     );
@@ -130,12 +130,12 @@ export default function InvoiceDetail() {
     return (
       <DashboardLayout>
         <div className="space-y-4">
-          <Button variant="ghost" onClick={() => navigate("/dashboard")} className="text-slate-600 hover:text-slate-900">
+          <Button variant="ghost" onClick={() => navigate("/dashboard")} className="text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Voltar
           </Button>
           <Card className="p-8 text-center">
-            <p className="text-slate-600">Nota fiscal não encontrada</p>
+            <p className="text-slate-600 dark:text-slate-400">Nota fiscal não encontrada</p>
           </Card>
         </div>
       </DashboardLayout>
@@ -147,15 +147,15 @@ export default function InvoiceDetail() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "Pendente":
-        return <Badge className="bg-yellow-500/20 text-yellow-700 border-yellow-500/30"><Clock className="w-3 h-3 mr-1" /> Pendente</Badge>;
+        return <Badge className="bg-yellow-500/20 text-yellow-700 border-yellow-500/30 dark:text-yellow-300 dark:border-yellow-500/40"><Clock className="w-3 h-3 mr-1" /> Pendente</Badge>;
       case "Processando":
-        return <Badge className="bg-blue-500/20 text-blue-700 border-blue-500/30"><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Processando</Badge>;
+        return <Badge className="bg-blue-500/20 text-blue-700 border-blue-500/30 dark:text-blue-300 dark:border-blue-500/40"><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Processando</Badge>;
       case "Processado":
-        return <Badge className="bg-green-500/20 text-green-700 border-green-500/30"><CheckCircle2 className="w-3 h-3 mr-1" /> Processado</Badge>;
+        return <Badge className="bg-green-500/20 text-green-700 border-green-500/30 dark:text-green-300 dark:border-green-500/40"><CheckCircle2 className="w-3 h-3 mr-1" /> Processado</Badge>;
       case "Erro":
-        return <Badge className="bg-red-500/20 text-red-700 border-red-500/30"><AlertCircle className="w-3 h-3 mr-1" /> Erro</Badge>;
+        return <Badge className="bg-red-500/20 text-red-700 border-red-500/30 dark:text-red-300 dark:border-red-500/40"><AlertCircle className="w-3 h-3 mr-1" /> Erro</Badge>;
       case "Cancelado":
-        return <Badge className="bg-slate-200 text-slate-600 border-slate-300"><XCircle className="w-3 h-3 mr-1" /> Cancelado</Badge>;
+        return <Badge className="bg-slate-200 text-slate-600 border-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600"><XCircle className="w-3 h-3 mr-1" /> Cancelado</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -173,18 +173,37 @@ export default function InvoiceDetail() {
     return new Date(date).toLocaleDateString("pt-BR");
   };
 
+  const expiresAt = (invoice as any).expiresAt;
+  const daysLeft = expiresAt
+    ? Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86400000)
+    : null;
+
   return (
     <DashboardLayout>
       <div className="space-y-8">
+        {/* Free plan expiry warning */}
+        {daysLeft !== null && daysLeft >= 0 && (
+          <div className="flex items-center gap-3 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 text-amber-800 text-sm dark:bg-amber-950/40 dark:border-amber-700 dark:text-amber-300">
+            <Clock className="w-4 h-4 flex-shrink-0" />
+            <span>
+              Esta nota pertence ao plano gratuito e será excluída automaticamente em <strong>{daysLeft} dia{daysLeft !== 1 ? "s" : ""}</strong>. Faça upgrade para preservá-la.
+            </span>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate("/dashboard")} className="text-slate-600 hover:text-slate-900">
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/dashboard")}
+              className="text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+            >
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Nota Fiscal #{invoice.id}</h1>
-              <p className="text-slate-600 mt-1">Criada em {formatDate(invoice.createdAt)}</p>
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Nota Fiscal #{invoice.id}</h1>
+              <p className="text-slate-600 dark:text-slate-400 mt-1">Criada em {formatDate(invoice.createdAt)}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -210,7 +229,7 @@ export default function InvoiceDetail() {
                 size="sm"
                 disabled={isDownloadingPdf}
                 onClick={handleDownloadPdf}
-                className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                className="border-blue-300 text-blue-600 hover:bg-blue-50 dark:border-blue-600 dark:text-blue-400 dark:hover:bg-blue-950/50"
               >
                 {isDownloadingPdf ? (
                   <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
@@ -224,7 +243,7 @@ export default function InvoiceDetail() {
               <Button
                 variant="outline"
                 size="sm"
-                className="border-red-300 text-red-600 hover:bg-red-50"
+                className="border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/50"
                 onClick={() => setCancelDialogOpen(true)}
               >
                 <XCircle className="w-4 h-4 mr-1.5" />
@@ -239,59 +258,59 @@ export default function InvoiceDetail() {
           {/* Left Column */}
           <Card className="p-6 space-y-6">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900 mb-4">Informações da Nota</h2>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Informações da Nota</h2>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <User className="w-5 h-5 text-slate-400 mt-0.5 flex-shrink-0" />
+                  <User className="w-5 h-5 text-slate-400 dark:text-slate-500 mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-sm text-slate-600">Cliente (Tomador)</p>
-                    <p className="font-medium text-slate-900">{invoice.clientName}</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Cliente (Tomador)</p>
+                    <p className="font-medium text-slate-900 dark:text-slate-100">{invoice.clientName}</p>
                   </div>
                 </div>
 
-                <Separator />
+                <Separator className="dark:border-slate-700" />
 
                 <div className="flex items-start gap-3">
-                  <FileText className="w-5 h-5 text-slate-400 mt-0.5 flex-shrink-0" />
+                  <FileText className="w-5 h-5 text-slate-400 dark:text-slate-500 mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-sm text-slate-600">Descrição do Serviço</p>
-                    <p className="font-medium text-slate-900 mt-1">{invoice.serviceDescription}</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Descrição do Serviço</p>
+                    <p className="font-medium text-slate-900 dark:text-slate-100 mt-1">{invoice.serviceDescription}</p>
                   </div>
                 </div>
 
-                <Separator />
+                <Separator className="dark:border-slate-700" />
 
                 <div className="flex items-start gap-3">
-                  <DollarSign className="w-5 h-5 text-slate-400 mt-0.5 flex-shrink-0" />
+                  <DollarSign className="w-5 h-5 text-slate-400 dark:text-slate-500 mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-sm text-slate-600">Valor</p>
-                    <p className="font-bold text-lg text-slate-900">{formatValue(invoice.value)}</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Valor</p>
+                    <p className="font-bold text-lg text-slate-900 dark:text-slate-100">{formatValue(invoice.value)}</p>
                   </div>
                 </div>
 
-                <Separator />
+                <Separator className="dark:border-slate-700" />
 
                 <div className="flex items-start gap-3">
-                  <Calendar className="w-5 h-5 text-slate-400 mt-0.5 flex-shrink-0" />
+                  <Calendar className="w-5 h-5 text-slate-400 dark:text-slate-500 mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-sm text-slate-600">Competência</p>
-                    <p className="font-medium text-slate-900">{invoice.competenceMonth}</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Competência</p>
+                    <p className="font-medium text-slate-900 dark:text-slate-100">{invoice.competenceMonth}</p>
                   </div>
                 </div>
               </div>
             </div>
 
             {invoice.errorMessage && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-sm font-medium text-red-900 mb-1">Mensagem de Erro</p>
-                <p className="text-sm text-red-700">{invoice.errorMessage}</p>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 dark:bg-red-950/30 dark:border-red-800">
+                <p className="text-sm font-medium text-red-900 dark:text-red-300 mb-1">Mensagem de Erro</p>
+                <p className="text-sm text-red-700 dark:text-red-400">{invoice.errorMessage}</p>
               </div>
             )}
           </Card>
 
           {/* Right Column - Timeline */}
           <Card className="p-6">
-            <h2 className="text-lg font-semibold text-slate-900 mb-6">Histórico de Status</h2>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-6">Histórico de Status</h2>
 
             <div className="space-y-4">
               {history && history.length > 0 ? (
@@ -304,36 +323,34 @@ export default function InvoiceDetail() {
                         "bg-yellow-500"
                       }`} />
                       {index < (history?.length || 0) - 1 && (
-                        <div className="w-0.5 h-12 bg-slate-200 my-1" />
+                        <div className="w-0.5 h-12 bg-slate-200 dark:bg-slate-700 my-1" />
                       )}
                     </div>
                     <div className="pb-4">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-slate-900">
-                          {entry.fromStatus} → {entry.toStatus}
-                        </p>
-                      </div>
-                      <p className="text-sm text-slate-600 mt-1">{entry.reason}</p>
-                      <p className="text-xs text-slate-500 mt-2">{formatDate(entry.createdAt)}</p>
+                      <p className="font-medium text-slate-900 dark:text-slate-100">
+                        {entry.fromStatus} → {entry.toStatus}
+                      </p>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{entry.reason}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-500 mt-2">{formatDate(entry.createdAt)}</p>
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="text-slate-600">Sem histórico disponível</p>
+                <p className="text-slate-600 dark:text-slate-400">Sem histórico disponível</p>
               )}
             </div>
           </Card>
         </div>
 
         {/* Status Info */}
-        <Card className="p-6 bg-gradient-to-r from-blue-50 to-blue-100/50 border-blue-200">
+        <Card className="p-6 bg-gradient-to-r from-blue-50 to-blue-100/50 border-blue-200 dark:from-blue-950/40 dark:to-blue-900/20 dark:border-blue-800">
           <div className="flex items-center gap-4">
             {invoice.status === "Processado" && (
               <>
-                <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
+                <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400 flex-shrink-0" />
                 <div>
-                  <p className="font-semibold text-slate-900">Nota Fiscal Processada</p>
-                  <p className="text-sm text-slate-600 mt-1">
+                  <p className="font-semibold text-slate-900 dark:text-slate-100">Nota Fiscal Processada</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                     Esta nota fiscal foi emitida com sucesso em {formatDate(invoice.processedAt || invoice.updatedAt)}.
                   </p>
                 </div>
@@ -341,10 +358,10 @@ export default function InvoiceDetail() {
             )}
             {invoice.status === "Pendente" && (
               <>
-                <Clock className="w-8 h-8 text-yellow-600 flex-shrink-0" />
+                <Clock className="w-8 h-8 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
                 <div>
-                  <p className="font-semibold text-slate-900">Aguardando Envio</p>
-                  <p className="text-sm text-slate-600 mt-1">
+                  <p className="font-semibold text-slate-900 dark:text-slate-100">Aguardando Envio</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                     Esta nota fiscal aguarda o envio à prefeitura.
                   </p>
                 </div>
@@ -352,10 +369,10 @@ export default function InvoiceDetail() {
             )}
             {invoice.status === "Processando" && (
               <>
-                <Loader2 className="w-8 h-8 text-blue-600 flex-shrink-0 animate-spin" />
+                <Loader2 className="w-8 h-8 text-blue-600 dark:text-blue-400 flex-shrink-0 animate-spin" />
                 <div>
-                  <p className="font-semibold text-slate-900">Emissão em Andamento</p>
-                  <p className="text-sm text-slate-600 mt-1">
+                  <p className="font-semibold text-slate-900 dark:text-slate-100">Emissão em Andamento</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                     Sua nota está sendo processada pela prefeitura. Esta página atualiza automaticamente.
                   </p>
                 </div>
@@ -363,10 +380,10 @@ export default function InvoiceDetail() {
             )}
             {invoice.status === "Erro" && (
               <>
-                <AlertCircle className="w-8 h-8 text-red-600 flex-shrink-0" />
+                <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400 flex-shrink-0" />
                 <div>
-                  <p className="font-semibold text-slate-900">Erro no Processamento</p>
-                  <p className="text-sm text-slate-600 mt-1">
+                  <p className="font-semibold text-slate-900 dark:text-slate-100">Erro no Processamento</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                     Houve um erro ao processar esta nota fiscal. Verifique os detalhes acima.
                   </p>
                 </div>
@@ -374,10 +391,10 @@ export default function InvoiceDetail() {
             )}
             {invoice.status === "Cancelado" && (
               <>
-                <XCircle className="w-8 h-8 text-slate-500 flex-shrink-0" />
+                <XCircle className="w-8 h-8 text-slate-500 dark:text-slate-400 flex-shrink-0" />
                 <div>
-                  <p className="font-semibold text-slate-900">Nota Fiscal Cancelada</p>
-                  <p className="text-sm text-slate-600 mt-1">
+                  <p className="font-semibold text-slate-900 dark:text-slate-100">Nota Fiscal Cancelada</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                     Esta nota fiscal foi cancelada junto à prefeitura. Consulte o histórico para detalhes.
                   </p>
                 </div>

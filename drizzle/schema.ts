@@ -72,6 +72,8 @@ export const invoices = mysqlTable("invoices", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   processedAt: timestamp("processedAt"),
+  /** Auto-deletion date for free-plan invoices (null = permanent) */
+  expiresAt: timestamp("expiresAt"),
 });
 
 export type Invoice = typeof invoices.$inferSelect;

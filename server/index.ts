@@ -15,8 +15,10 @@ import {
   getPlanByName,
   createSubscription,
   updateSubscriptionByUserId,
+  deleteExpiredInvoices,
 } from "./db";
 import type { AsaasWebhookEvent } from "./_core/asaas";
+import { ensureAsaasWebhook } from "./_core/asaas";
 
 const app = express();
 
@@ -151,5 +153,14 @@ app.listen(ENV.port, () => {
 
 // Start the BullMQ worker in the same process (single-service deploy)
 startNFSeWorker();
+
+// Auto-register Asaas webhook on startup (skipped when PUBLIC_URL is localhost)
+ensureAsaasWebhook(ENV.publicUrl);
+
+// Clean up expired free-plan invoices on startup and every 6 hours
+deleteExpiredInvoices().then((n) => n > 0 && console.log(`[cleanup] deleted ${n} expired invoices`)).catch(console.error);
+setInterval(() => {
+  deleteExpiredInvoices().then((n) => n > 0 && console.log(`[cleanup] deleted ${n} expired invoices`)).catch(console.error);
+}, 24 * 60 * 60 * 1000);
 
 export type AppRouter = typeof appRouter;

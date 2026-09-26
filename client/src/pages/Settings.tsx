@@ -18,8 +18,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AlertCircle, CheckCircle2, FileUp, Lock, Building2, UserX, Webhook, Trash2, Eye, Copy, ChevronDown, ChevronUp, Bell } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileUp, Lock, Building2, UserX, Webhook, Trash2, Eye, Copy, ChevronDown, ChevronUp, Bell, Sun, Moon } from "lucide-react";
 import { toast } from "sonner";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const ALL_EVENTS = [
   { value: "invoice.created", label: "invoice.created", description: "NF criada" },
@@ -33,6 +34,7 @@ type EventName = (typeof ALL_EVENTS)[number]["value"];
 export default function Settings() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
+  const { theme, setTheme } = useTheme();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
@@ -143,7 +145,6 @@ export default function Settings() {
     onSuccess: () => toast.success("Preferências de notificação salvas!"),
     onError: (err) => toast.error(err.message || "Erro ao salvar preferências"),
   });
-
   if (notifPrefsQuery.data && !notifLoaded) {
     setNotifEmailTomador(notifPrefsQuery.data.emailTomadorOnSuccess);
     setNotifEmailPrestador(notifPrefsQuery.data.emailPrestadorOnError);
@@ -205,8 +206,8 @@ export default function Settings() {
     <DashboardLayout>
       <div className="flex-1 flex flex-col">
         <div className="p-8 pb-4">
-          <h1 className="text-3xl font-bold text-slate-900">Configurações</h1>
-          <p className="text-slate-600 mt-2">
+          <h1 className="text-3xl font-bold text-foreground">Configurações</h1>
+          <p className="text-muted-foreground mt-2">
             Gerencie seus dados de empresa e certificado digital para emissão de NFS-e
           </p>
         </div>
@@ -254,7 +255,7 @@ export default function Settings() {
                         }
                         className="mt-1"
                       />
-                      <p className="text-xs text-slate-500 mt-1">14 dígitos sem formatação</p>
+                      <p className="text-xs text-muted-foreground mt-1">14 dígitos sem formatação</p>
                     </div>
 
                     <div>
@@ -365,7 +366,7 @@ export default function Settings() {
                         }
                         className="mt-1"
                       />
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         Varia por município: 2% a 5%. Porto Alegre: 5%, Caxias do Sul: 4%.
                       </p>
                     </div>
@@ -386,7 +387,7 @@ export default function Settings() {
                         className="mt-1"
                         maxLength={6}
                       />
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         Ex: 0107 = TI/Processamento de dados. Veja a lista LC 116.
                       </p>
                     </div>
@@ -407,16 +408,16 @@ export default function Settings() {
             <TabsContent value="certificate" className="space-y-6">
               {/* Active Certificate */}
               {activeCertQuery.data && (
-                <Card className="p-6 border-green-200 bg-green-50">
+                <Card className="p-6 border-green-200 dark:border-green-800/40 bg-green-50 dark:bg-green-950/30">
                   <div className="flex items-start gap-4">
-                    <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0 mt-1" />
+                    <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400 flex-shrink-0 mt-1" />
                     <div className="flex-1">
-                      <h3 className="font-semibold text-green-900">Certificado Ativo</h3>
-                      <p className="text-sm text-green-800 mt-1">
+                      <h3 className="font-semibold text-green-900 dark:text-green-100">Certificado Ativo</h3>
+                      <p className="text-sm text-green-800 dark:text-green-200 mt-1">
                         {activeCertQuery.data.filename}
                       </p>
                       {activeCertQuery.data.validUntil && (
-                        <p className="text-xs text-green-700 mt-2">
+                        <p className="text-xs text-green-700 dark:text-green-300 mt-2">
                           Válido até:{" "}
                           {new Date(activeCertQuery.data.validUntil).toLocaleDateString("pt-BR")}
                         </p>
@@ -430,17 +431,17 @@ export default function Settings() {
               <Card className="p-6">
                 <div className="space-y-6">
                   <div>
-                    <h3 className="font-semibold text-slate-900 mb-4">
+                    <h3 className="font-semibold text-foreground mb-4">
                       Enviar Novo Certificado
                     </h3>
-                    <p className="text-sm text-slate-600 mb-4">
+                    <p className="text-sm text-muted-foreground mb-4">
                       Envie seu certificado digital A1 (arquivo .pfx ou .p12) para emitir notas
                       fiscais.
                     </p>
                   </div>
 
-                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-slate-400 transition-colors">
-                    <FileUp className="w-8 h-8 text-slate-400 mx-auto mb-3" />
+                  <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-muted-foreground/40 transition-colors">
+                    <FileUp className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
                     <label className="cursor-pointer">
                       <span className="text-sm font-medium text-blue-600 hover:text-blue-700">
                         Clique para selecionar arquivo
@@ -453,7 +454,7 @@ export default function Settings() {
                       />
                     </label>
                     {certificateFile && (
-                      <p className="text-sm text-slate-600 mt-2">{certificateFile.name}</p>
+                      <p className="text-sm text-muted-foreground mt-2">{certificateFile.name}</p>
                     )}
                   </div>
 
@@ -469,15 +470,15 @@ export default function Settings() {
                       onChange={(e) => setCertificatePassword(e.target.value)}
                       className="mt-1"
                     />
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       A senha será criptografada e armazenada com segurança
                     </p>
                   </div>
 
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/40 rounded-lg p-4">
                     <div className="flex gap-3">
-                      <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                      <div className="text-sm text-blue-800">
+                      <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-blue-800 dark:text-blue-200">
                         <p className="font-medium">Informações importantes:</p>
                         <ul className="list-disc list-inside mt-2 space-y-1 text-xs">
                           <li>Certificado deve ser válido e emitido por AC credenciada ICP-Brasil</li>
@@ -501,24 +502,24 @@ export default function Settings() {
               {/* Certificate List */}
               {certificatesQuery.data && certificatesQuery.data.length > 0 && (
                 <Card className="p-6">
-                  <h3 className="font-semibold text-slate-900 mb-4">Histórico de Certificados</h3>
+                  <h3 className="font-semibold text-foreground mb-4">Histórico de Certificados</h3>
                   <div className="space-y-3">
                     {certificatesQuery.data.map((cert) => (
                       <div
                         key={cert.id}
-                        className="flex items-center justify-between p-3 border border-slate-200 rounded-lg"
+                        className="flex items-center justify-between p-3 border border-border rounded-lg"
                       >
                         <div>
-                          <p className="text-sm font-medium text-slate-900">{cert.filename}</p>
+                          <p className="text-sm font-medium text-foreground">{cert.filename}</p>
                           {cert.validUntil && (
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-muted-foreground">
                               Válido até:{" "}
                               {new Date(cert.validUntil).toLocaleDateString("pt-BR")}
                             </p>
                           )}
                         </div>
                         {cert.isActive === "true" && (
-                          <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
+                          <span className="px-2 py-1 bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 text-xs font-medium rounded">
                             Ativo
                           </span>
                         )}
@@ -531,19 +532,19 @@ export default function Settings() {
             {/* Notifications Tab */}
             <TabsContent value="notifications" className="space-y-6">
               <Card className="p-6">
-                <h3 className="font-semibold text-slate-900 mb-1">Notificações por Email</h3>
-                <p className="text-sm text-slate-600 mb-6">
+                <h3 className="font-semibold text-foreground mb-1">Notificações por Email</h3>
+                <p className="text-sm text-muted-foreground mb-6">
                   Configure os emails automáticos enviados após cada emissão de NFS-e.
                 </p>
 
                 <div className="space-y-6">
                   {/* Email ao tomador */}
-                  <div className="flex items-start justify-between gap-4 p-4 border border-slate-200 rounded-lg">
+                  <div className="flex items-start justify-between gap-4 p-4 border border-border rounded-lg">
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-slate-900">
+                      <p className="text-sm font-medium text-foreground">
                         Enviar PDF ao tomador após emissão
                       </p>
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         O tomador recebe o PDF da NFS-e por email logo após a emissão com sucesso.
                       </p>
                     </div>
@@ -567,19 +568,19 @@ export default function Settings() {
                         onChange={(e) => setNotifDefaultTomadorEmail(e.target.value)}
                         className="mt-1"
                       />
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         Usado quando nenhum email específico for informado na nota.
                       </p>
                     </div>
                   )}
 
                   {/* Email de erro ao prestador */}
-                  <div className="flex items-start justify-between gap-4 p-4 border border-slate-200 rounded-lg">
+                  <div className="flex items-start justify-between gap-4 p-4 border border-border rounded-lg">
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-slate-900">
+                      <p className="text-sm font-medium text-foreground">
                         Alertar por email em caso de falha
                       </p>
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         Você recebe um email quando uma nota falha após todas as tentativas de reenvio.
                       </p>
                     </div>
@@ -605,18 +606,18 @@ export default function Settings() {
                 </div>
               </Card>
 
-              <Card className="p-5 bg-blue-50 border-blue-200">
+              <Card className="p-5 bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/40">
                 <div className="flex gap-3">
-                  <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-blue-800">
+                  <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-blue-800 dark:text-blue-200">
                     <p className="font-medium">Configuração de SMTP</p>
                     <p className="text-xs mt-1">
                       Para enviar emails, defina as variáveis de ambiente{" "}
-                      <code className="bg-blue-100 px-1 rounded">SMTP_HOST</code>,{" "}
-                      <code className="bg-blue-100 px-1 rounded">SMTP_PORT</code>,{" "}
-                      <code className="bg-blue-100 px-1 rounded">SMTP_USER</code> e{" "}
-                      <code className="bg-blue-100 px-1 rounded">SMTP_PASS</code>.
-                      Alternativamente, use <code className="bg-blue-100 px-1 rounded">RESEND_API_KEY</code>.
+                      <code className="bg-blue-100 dark:bg-blue-900/50 px-1 rounded">SMTP_HOST</code>,{" "}
+                      <code className="bg-blue-100 dark:bg-blue-900/50 px-1 rounded">SMTP_PORT</code>,{" "}
+                      <code className="bg-blue-100 dark:bg-blue-900/50 px-1 rounded">SMTP_USER</code> e{" "}
+                      <code className="bg-blue-100 dark:bg-blue-900/50 px-1 rounded">SMTP_PASS</code>.
+                      Alternativamente, use <code className="bg-blue-100 dark:bg-blue-900/50 px-1 rounded">RESEND_API_KEY</code>.
                     </p>
                   </div>
                 </div>
@@ -627,22 +628,22 @@ export default function Settings() {
             <TabsContent value="webhooks" className="space-y-6">
               {/* Secret reveal dialog */}
               {newSecret && (
-                <Card className="p-5 border-green-200 bg-green-50">
+                <Card className="p-5 border-green-200 dark:border-green-800/40 bg-green-50 dark:bg-green-950/30">
                   <div className="flex items-start gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                    <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-green-900">Endpoint criado!</p>
-                      <p className="text-xs text-green-700 mt-1 mb-2">
+                      <p className="font-semibold text-green-900 dark:text-green-100">Endpoint criado!</p>
+                      <p className="text-xs text-green-700 dark:text-green-300 mt-1 mb-2">
                         Copie a chave secreta agora — ela não será exibida novamente.
                       </p>
-                      <div className="flex items-center gap-2 bg-white border border-green-300 rounded px-3 py-2 font-mono text-xs break-all">
+                      <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-green-300 dark:border-green-800/60 rounded px-3 py-2 font-mono text-xs break-all text-foreground">
                         <span className="flex-1">{newSecret}</span>
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(newSecret);
                             toast.success("Copiado!");
                           }}
-                          className="shrink-0 text-green-700 hover:text-green-900"
+                          className="shrink-0 text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-200"
                         >
                           <Copy className="w-4 h-4" />
                         </button>
@@ -662,7 +663,7 @@ export default function Settings() {
 
               {/* Add new endpoint */}
               <Card className="p-6">
-                <h3 className="font-semibold text-slate-900 mb-4">Adicionar endpoint</h3>
+                <h3 className="font-semibold text-foreground mb-4">Adicionar endpoint</h3>
                 <div className="space-y-4">
                   <div>
                     <Label className="text-sm font-medium">URL *</Label>
@@ -688,7 +689,7 @@ export default function Settings() {
                       {ALL_EVENTS.map((ev) => (
                         <label
                           key={ev.value}
-                          className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50"
+                          className="flex items-center gap-2 p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/40"
                         >
                           <input
                             type="checkbox"
@@ -697,8 +698,8 @@ export default function Settings() {
                             className="rounded"
                           />
                           <div>
-                            <p className="text-xs font-mono font-medium text-slate-800">{ev.label}</p>
-                            <p className="text-xs text-slate-500">{ev.description}</p>
+                            <p className="text-xs font-mono font-medium text-foreground">{ev.label}</p>
+                            <p className="text-xs text-muted-foreground">{ev.description}</p>
                           </div>
                         </label>
                       ))}
@@ -717,7 +718,7 @@ export default function Settings() {
               {/* Endpoint list */}
               {webhookEndpointsQuery.data && webhookEndpointsQuery.data.length > 0 && (
                 <Card className="p-6">
-                  <h3 className="font-semibold text-slate-900 mb-4">Endpoints configurados</h3>
+                  <h3 className="font-semibold text-foreground mb-4">Endpoints configurados</h3>
                   <div className="space-y-3">
                     {webhookEndpointsQuery.data.map((ep) => {
                       const events: string[] = (() => {
@@ -726,12 +727,12 @@ export default function Settings() {
                       const isExpanded = expandedDeliveries === ep.id;
 
                       return (
-                        <div key={ep.id} className="border border-slate-200 rounded-lg overflow-hidden">
+                        <div key={ep.id} className="border border-border rounded-lg overflow-hidden">
                           <div className="flex items-center justify-between p-4">
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-mono text-slate-800 truncate">{ep.url}</p>
+                              <p className="text-sm font-mono text-foreground truncate">{ep.url}</p>
                               {ep.description && (
-                                <p className="text-xs text-slate-500 mt-0.5">{ep.description}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{ep.description}</p>
                               )}
                               <div className="flex flex-wrap gap-1 mt-2">
                                 {events.map((ev) => (
@@ -750,7 +751,7 @@ export default function Settings() {
                               />
                               <button
                                 onClick={() => setExpandedDeliveries(isExpanded ? null : ep.id)}
-                                className="text-slate-500 hover:text-slate-700"
+                                className="text-muted-foreground hover:text-foreground"
                                 title="Ver entregas"
                               >
                                 {isExpanded ? (
@@ -775,18 +776,18 @@ export default function Settings() {
 
                           {/* Delivery log */}
                           {isExpanded && (
-                            <div className="border-t border-slate-100 bg-slate-50 p-4">
-                              <p className="text-xs font-medium text-slate-700 mb-3">
+                            <div className="border-t border-border bg-muted/40 p-4">
+                              <p className="text-xs font-medium text-foreground mb-3">
                                 Últimas 20 entregas
                               </p>
                               {deliveriesQuery.isLoading ? (
-                                <p className="text-xs text-slate-500">Carregando...</p>
+                                <p className="text-xs text-muted-foreground">Carregando...</p>
                               ) : deliveriesQuery.data && deliveriesQuery.data.length > 0 ? (
                                 <div className="space-y-2">
                                   {deliveriesQuery.data.map((d) => (
                                     <div
                                       key={d.id}
-                                      className="flex items-start gap-3 text-xs bg-white border border-slate-100 rounded p-2"
+                                      className="flex items-start gap-3 text-xs bg-card border border-border rounded p-2"
                                     >
                                       <span
                                         className={`mt-0.5 shrink-0 w-2 h-2 rounded-full ${
@@ -800,19 +801,19 @@ export default function Settings() {
                                             <span
                                               className={`px-1.5 py-0.5 rounded font-mono ${
                                                 d.success === "true"
-                                                  ? "bg-green-100 text-green-800"
-                                                  : "bg-red-100 text-red-800"
+                                                  ? "bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300"
+                                                  : "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300"
                                               }`}
                                             >
                                               HTTP {d.responseStatus}
                                             </span>
                                           )}
-                                          <span className="text-slate-400 ml-auto">
+                                          <span className="text-muted-foreground ml-auto">
                                             {new Date(d.createdAt).toLocaleString("pt-BR")}
                                           </span>
                                         </div>
                                         {d.responseBody && (
-                                          <p className="text-slate-500 truncate mt-0.5">
+                                          <p className="text-muted-foreground truncate mt-0.5">
                                             {d.responseBody}
                                           </p>
                                         )}
@@ -821,7 +822,7 @@ export default function Settings() {
                                   ))}
                                 </div>
                               ) : (
-                                <p className="text-xs text-slate-500">Nenhuma entrega registada.</p>
+                                <p className="text-xs text-muted-foreground">Nenhuma entrega registada.</p>
                               )}
                             </div>
                           )}
@@ -833,11 +834,11 @@ export default function Settings() {
               )}
 
               {/* Info box */}
-              <Card className="p-5 bg-slate-50 border-slate-200">
-                <p className="text-sm font-semibold text-slate-800 mb-2">Como verificar a assinatura</p>
-                <p className="text-xs text-slate-600 mb-2">
+              <Card className="p-5 bg-muted/40 border-border">
+                <p className="text-sm font-semibold text-foreground mb-2">Como verificar a assinatura</p>
+                <p className="text-xs text-muted-foreground mb-2">
                   Cada requisição inclui o header{" "}
-                  <code className="bg-slate-200 px-1 rounded">X-AutoNF-Signature: sha256=&lt;hmac&gt;</code>.
+                  <code className="bg-muted px-1 rounded">X-AutoNF-Signature: sha256=&lt;hmac&gt;</code>.
                   Verifique com:
                 </p>
                 <pre className="bg-slate-900 text-green-400 text-xs rounded p-3 overflow-x-auto">
@@ -855,11 +856,51 @@ if (\`sha256=\${sig}\` !== req.headers['x-autonf-signature']) {
 
             {/* Account Tab */}
             <TabsContent value="account" className="space-y-6">
+              {/* Appearance */}
               <Card className="p-6">
-                <h3 className="font-semibold text-slate-900 mb-1">Privacidade e LGPD</h3>
-                <p className="text-sm text-slate-600 mb-4">
+                <h3 className="font-semibold text-foreground mb-1">Aparência</h3>
+                <p className="text-sm text-muted-foreground mb-5">
+                  Escolha como o AutoNF é exibido para você.
+                </p>
+                <div className="grid grid-cols-2 gap-3 max-w-xs">
+                  <button
+                    onClick={() => setTheme("light")}
+                    className={`flex flex-col items-center gap-2.5 p-4 rounded-xl border-2 transition-all ${
+                      theme === "light"
+                        ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30"
+                        : "border-border hover:border-border/80 hover:bg-muted/40"
+                    }`}
+                  >
+                    <div className="w-8 h-8 bg-white dark:bg-slate-200 rounded-lg flex items-center justify-center border border-slate-200 shadow-sm">
+                      <Sun className={`w-4 h-4 ${theme === "light" ? "text-indigo-600" : "text-slate-500"}`} />
+                    </div>
+                    <span className={`text-xs font-medium ${theme === "light" ? "text-indigo-700 dark:text-indigo-400" : "text-muted-foreground"}`}>
+                      Claro
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setTheme("dark")}
+                    className={`flex flex-col items-center gap-2.5 p-4 rounded-xl border-2 transition-all ${
+                      theme === "dark"
+                        ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30"
+                        : "border-border hover:border-border/80 hover:bg-muted/40"
+                    }`}
+                  >
+                    <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center border border-slate-700 shadow-sm">
+                      <Moon className={`w-4 h-4 ${theme === "dark" ? "text-indigo-400" : "text-slate-400"}`} />
+                    </div>
+                    <span className={`text-xs font-medium ${theme === "dark" ? "text-indigo-700 dark:text-indigo-400" : "text-muted-foreground"}`}>
+                      Escuro
+                    </span>
+                  </button>
+                </div>
+              </Card>
+
+              <Card className="p-6">
+                <h3 className="font-semibold text-foreground mb-1">Privacidade e LGPD</h3>
+                <p className="text-sm text-muted-foreground mb-4">
                   Consulte nossa{" "}
-                  <a href="/privacy" className="text-blue-600 underline">
+                  <a href="/privacy" className="text-indigo-600 dark:text-indigo-400 underline">
                     Política de Privacidade
                   </a>{" "}
                   para entender como tratamos seus dados.
@@ -871,7 +912,7 @@ if (\`sha256=\${sig}\` !== req.headers['x-autonf-signature']) {
                   <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <h3 className="font-semibold text-red-900 mb-1">Excluir conta</h3>
-                    <p className="text-sm text-slate-600 mb-4">
+                    <p className="text-sm text-muted-foreground mb-4">
                       Remove permanentemente sua conta, certificados, configurações e histórico de
                       notas. Dados fiscais já emitidos são mantidos pelo prazo legal de 5 anos.
                       Esta ação é irreversível.

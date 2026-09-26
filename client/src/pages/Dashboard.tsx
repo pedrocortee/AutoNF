@@ -5,19 +5,18 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, FileText, Clock, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Loader2, XCircle } from "lucide-react";
+import { Plus, AlertCircle, ChevronDown, ChevronUp, FileText, Clock, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { PlanUsageCard } from "@/components/PlanUsageCard";
+import { MonthPicker } from "@/components/ui/month-picker";
 
 export default function Dashboard() {
-  const { user, isAuthenticated, loading, logout } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const [, navigate] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [filters, setFilters] = useState({ status: undefined as any, clientName: "", competenceMonth: "" });
@@ -143,20 +142,20 @@ export default function Dashboard() {
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "Pendente":
-        return <Badge className="bg-yellow-500/20 text-yellow-700 border-yellow-500/30"><Clock className="w-3 h-3 mr-1" /> Pendente</Badge>;
-      case "Processando":
-        return <Badge className="bg-blue-500/20 text-blue-700 border-blue-500/30"><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Processando</Badge>;
-      case "Processado":
-        return <Badge className="bg-green-500/20 text-green-700 border-green-500/30"><CheckCircle2 className="w-3 h-3 mr-1" /> Processado</Badge>;
-      case "Erro":
-        return <Badge className="bg-red-500/20 text-red-700 border-red-500/30"><AlertCircle className="w-3 h-3 mr-1" /> Erro</Badge>;
-      case "Cancelado":
-        return <Badge className="bg-slate-500/20 text-slate-600 border-slate-400/30"><XCircle className="w-3 h-3 mr-1" /> Cancelado</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
-    }
+    const map: Record<string, { bg: string; text: string; icon?: React.ReactNode }> = {
+      Pendente:    { bg: "bg-amber-50 dark:bg-amber-950/40",   text: "text-amber-700 dark:text-amber-400",   icon: <Clock className="w-3 h-3" /> },
+      Processando: { bg: "bg-blue-50 dark:bg-blue-950/40",    text: "text-blue-700 dark:text-blue-400",    icon: <Loader2 className="w-3 h-3 animate-spin" /> },
+      Processado:  { bg: "bg-emerald-50 dark:bg-emerald-950/40", text: "text-emerald-700 dark:text-emerald-400", icon: <CheckCircle2 className="w-3 h-3" /> },
+      Erro:        { bg: "bg-red-50 dark:bg-red-950/40",     text: "text-red-700 dark:text-red-400",     icon: <AlertCircle className="w-3 h-3" /> },
+      Cancelado:   { bg: "bg-muted",  text: "text-muted-foreground",  icon: <XCircle className="w-3 h-3" /> },
+    };
+    const s = map[status] ?? { bg: "bg-muted", text: "text-muted-foreground" };
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${s.bg} ${s.text}`}>
+        {s.icon}
+        {status}
+      </span>
+    );
   };
 
   const formatValue = (cents: number) => {
@@ -172,44 +171,35 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
+      <div className="space-y-6">
         {/* Plan Usage Card */}
         <PlanUsageCard />
 
         {/* Certificate expiry alert */}
         {certExpiryQuery.data && (
-          <div
-            className={`flex items-start gap-3 rounded-lg border px-4 py-3 text-sm ${
-              (certExpiryQuery.data.daysLeft ?? 30) <= 7
-                ? "bg-red-50 border-red-300 text-red-800"
-                : "bg-yellow-50 border-yellow-300 text-yellow-800"
-            }`}
-          >
-            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-            <div>
-              <span className="font-semibold">Certificado digital expirando em {certExpiryQuery.data.daysLeft} dia(s).</span>{" "}
-              <span className="opacity-80">
-                {certExpiryQuery.data.filename} vence em{" "}
-                {certExpiryQuery.data.validUntil
-                  ? new Date(certExpiryQuery.data.validUntil).toLocaleDateString("pt-BR")
-                  : "breve"}
-                . Renove o certificado em{" "}
-                <a href="/settings" className="underline font-medium">Configurações</a>.
-              </span>
-            </div>
+          <div className="flex items-start gap-2.5 rounded-md border border-border bg-muted/50 px-4 py-3 text-sm">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-muted-foreground" />
+            <p className="text-muted-foreground">
+              <span className="font-medium text-foreground">Certificado expirando em {certExpiryQuery.data.daysLeft} dia(s).</span>{" "}
+              {certExpiryQuery.data.filename} vence em{" "}
+              {certExpiryQuery.data.validUntil
+                ? new Date(certExpiryQuery.data.validUntil).toLocaleDateString("pt-BR")
+                : "breve"}.{" "}
+              <a href="/settings" className="underline text-foreground">Renove em Configurações</a>.
+            </p>
           </div>
         )}
 
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-            <p className="text-slate-600 mt-2">Bem-vindo, {user?.name || "usuário"}!</p>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">Notas Fiscais</h1>
+            <p className="text-sm text-muted-foreground mt-1">Bem-vindo de volta, {user?.name?.split(" ")[0] || "usuário"} 👋</p>
           </div>
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
               <Button
-                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
+                className="gap-2 shadow-sm shadow-indigo-200"
                 onClick={(e) => {
                   if (!hasActivePlan) {
                     e.preventDefault();
@@ -217,7 +207,7 @@ export default function Dashboard() {
                   }
                 }}
               >
-                <Plus className="w-4 h-4 mr-2" />
+                <Plus className="w-4 h-4" />
                 Nova Nota Fiscal
               </Button>
             </DialogTrigger>
@@ -318,10 +308,10 @@ export default function Dashboard() {
                 </div>
 
                 {/* Retenções (colapsável) */}
-                <div className="border border-slate-200 rounded-lg">
+                <div className="border border-border rounded-lg">
                   <button
                     type="button"
-                    className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
+                    className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-foreground hover:bg-muted/50 rounded-lg"
                     onClick={() => setShowRetentions(!showRetentions)}
                   >
                     Retenções de impostos (opcional — tomador PJ)
@@ -331,7 +321,7 @@ export default function Dashboard() {
                     <div className="px-4 pb-4 grid grid-cols-2 gap-3">
                       {(["irpj", "csll", "cofins", "pis", "inss"] as const).map((field) => (
                         <div key={field}>
-                          <Label className="text-xs uppercase text-slate-500">{field.toUpperCase()} (R$)</Label>
+                          <Label className="text-xs uppercase text-muted-foreground">{field.toUpperCase()} (R$)</Label>
                           <Input
                             type="number"
                             step="0.01"
@@ -356,7 +346,7 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex gap-3 pt-4">
-                  <Button type="submit" className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white" disabled={createMutation.isPending}>
+                  <Button type="submit" className="flex-1 " disabled={createMutation.isPending}>
                     {createMutation.isPending ? "Criando..." : "Criar Nota Fiscal"}
                   </Button>
                   <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
@@ -368,175 +358,136 @@ export default function Dashboard() {
           </Dialog>
         </div>
 
-        {/* Metrics Cards */}
+        {/* Metrics */}
         {metrics && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card className="bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200">
-              <div className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-blue-600">Total de Notas</p>
-                    <p className="text-3xl font-bold text-blue-900 mt-2">{metrics.total}</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: "Total de Notas", value: metrics.total,     icon: FileText,     bg: "bg-muted",                              color: "text-muted-foreground" },
+              { label: "Pendentes",      value: metrics.pending,   icon: Clock,        bg: "bg-amber-50 dark:bg-amber-950/40",      color: "text-amber-600 dark:text-amber-400" },
+              { label: "Processadas",    value: metrics.processed, icon: CheckCircle2, bg: "bg-emerald-50 dark:bg-emerald-950/40",  color: "text-emerald-600 dark:text-emerald-400" },
+              { label: "Com Erro",       value: metrics.error,     icon: AlertCircle,  bg: "bg-red-50 dark:bg-red-950/40",          color: "text-red-600 dark:text-red-400" },
+            ].map(({ label, value, icon: Icon, bg, color }) => (
+              <div key={label} className="bg-card rounded-xl border border-border p-5 shadow-sm">
+                <div className="flex items-start justify-between mb-3">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
+                  <div className={`p-1.5 rounded-lg ${bg}`}>
+                    <Icon className={`w-4 h-4 ${color}`} />
                   </div>
-                  <FileText className="w-10 h-10 text-blue-300" />
                 </div>
+                <p className="text-3xl font-bold text-foreground tabular-nums">{value}</p>
               </div>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100/50 border-yellow-200">
-              <div className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-yellow-600">Pendentes</p>
-                    <p className="text-3xl font-bold text-yellow-900 mt-2">{metrics.pending}</p>
-                  </div>
-                  <Clock className="w-10 h-10 text-yellow-300" />
-                </div>
-              </div>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-green-50 to-green-100/50 border-green-200">
-              <div className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-green-600">Processadas</p>
-                    <p className="text-3xl font-bold text-green-900 mt-2">{metrics.processed}</p>
-                  </div>
-                  <CheckCircle2 className="w-10 h-10 text-green-300" />
-                </div>
-              </div>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-red-50 to-red-100/50 border-red-200">
-              <div className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-red-600">Com Erro</p>
-                    <p className="text-3xl font-bold text-red-900 mt-2">{metrics.error}</p>
-                  </div>
-                  <AlertCircle className="w-10 h-10 text-red-300" />
-                </div>
-              </div>
-            </Card>
+            ))}
           </div>
         )}
 
         {/* Filters */}
-        <div className="bg-white rounded-lg border border-slate-200 p-4 space-y-4">
-          <h3 className="font-semibold text-slate-900">Filtros</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="filterStatus" className="text-sm">Status</Label>
+        <div className="bg-card rounded-xl border border-border p-4 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3">
             <Select value={filters.status || "all"} onValueChange={(value) => setFilters({ ...filters, status: value === "all" ? undefined : value })}>
-              <SelectTrigger id="filterStatus" className="mt-1">
-                <SelectValue placeholder="Todos" />
+              <SelectTrigger className="h-9 w-40 text-sm bg-muted/50 border-border">
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="all">Todos os status</SelectItem>
                 <SelectItem value="Pendente">Pendente</SelectItem>
                 <SelectItem value="Processado">Processado</SelectItem>
                 <SelectItem value="Erro">Erro</SelectItem>
               </SelectContent>
             </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="filterClient" className="text-sm">Cliente</Label>
-              <Input
-                id="filterClient"
-                placeholder="Buscar por cliente..."
-                value={filters.clientName}
-                onChange={(e) => setFilters({ ...filters, clientName: e.target.value })}
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="filterMonth" className="text-sm">Competência</Label>
-              <Input
-                id="filterMonth"
-                type="month"
-                value={filters.competenceMonth}
-                onChange={(e) => setFilters({ ...filters, competenceMonth: e.target.value })}
-                className="mt-1"
-              />
-            </div>
+            <Input
+              placeholder="Buscar por cliente..."
+              value={filters.clientName}
+              onChange={(e) => setFilters({ ...filters, clientName: e.target.value })}
+              className="h-9 w-52 text-sm bg-muted/50 border-border"
+            />
+            <MonthPicker
+              value={filters.competenceMonth}
+              onChange={(v) => setFilters({ ...filters, competenceMonth: v })}
+              placeholder="Competência"
+              className="w-44"
+            />
           </div>
         </div>
 
         {/* Table */}
-        <Card className="overflow-hidden">
+        <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50 border-b border-slate-200">
-                  <TableHead className="text-slate-900 font-semibold">Cliente</TableHead>
-                  <TableHead className="text-slate-900 font-semibold">Serviço</TableHead>
-                  <TableHead className="text-slate-900 font-semibold">Valor</TableHead>
-                  <TableHead className="text-slate-900 font-semibold">Competência</TableHead>
-                  <TableHead className="text-slate-900 font-semibold">Status</TableHead>
-                  <TableHead className="text-slate-900 font-semibold">Data</TableHead>
-                  <TableHead className="text-slate-900 font-semibold">Ação</TableHead>
+                <TableRow className="bg-muted/40 border-b border-border hover:bg-muted/40">
+                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-10 pl-6">Cliente</TableHead>
+                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-10">Serviço</TableHead>
+                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-10">Valor</TableHead>
+                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-10">Competência</TableHead>
+                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-10">Status</TableHead>
+                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-10">Data</TableHead>
+                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground h-10 pr-6"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {invoices.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-slate-500">
-                      Nenhuma nota fiscal encontrada. Crie uma nova para começar.
+                    <TableCell colSpan={7} className="text-center py-16">
+                      <div className="flex flex-col items-center gap-3">
+                        <FileText className="w-8 h-8 text-muted-foreground/40" />
+                        <div>
+                          <p className="font-medium text-sm text-muted-foreground">Nenhuma nota fiscal encontrada</p>
+                          <p className="text-xs mt-0.5 text-muted-foreground/60">Clique em "Nova Nota Fiscal" para criar a primeira</p>
+                        </div>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  invoices.map((invoice: any) => (
-                    <TableRow key={invoice.id} className="border-b border-slate-200 hover:bg-slate-50">
-                      <TableCell className="font-medium text-slate-900">{invoice.clientName}</TableCell>
-                      <TableCell className="text-slate-700 max-w-xs truncate">{invoice.serviceDescription}</TableCell>
-                      <TableCell className="text-slate-900 font-medium">{formatValue(invoice.value)}</TableCell>
-                      <TableCell className="text-slate-700">{invoice.competenceMonth}</TableCell>
-                      <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                      <TableCell className="text-slate-700">{formatDate(invoice.createdAt)}</TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                          onClick={() => navigate(`/invoices/${invoice.id}`)}
-                        >
-                          Ver Detalhes
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  invoices.map((invoice: any) => {
+                    const daysLeft = invoice.expiresAt
+                      ? Math.ceil((new Date(invoice.expiresAt).getTime() - Date.now()) / 86400000)
+                      : null;
+                    return (
+                      <TableRow
+                        key={invoice.id}
+                        className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
+                        onClick={() => navigate(`/invoices/${invoice.id}`)}
+                      >
+                        <TableCell className="font-medium text-sm text-foreground py-4 pl-6">
+                          {invoice.clientName}
+                          {daysLeft !== null && daysLeft >= 0 && (
+                            <span className="ml-2 text-[11px] bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-medium px-1.5 py-0.5 rounded-full">
+                              expira em {daysLeft}d
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate py-4">{invoice.serviceDescription}</TableCell>
+                        <TableCell className="text-sm font-semibold text-foreground tabular-nums py-4">{formatValue(invoice.value)}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground py-4">{invoice.competenceMonth}</TableCell>
+                        <TableCell className="py-4">{getStatusBadge(invoice.status)}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground py-4">{formatDate(invoice.createdAt)}</TableCell>
+                        <TableCell className="py-4 pr-6">
+                          <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-950/60 px-2.5 py-1 rounded-full transition-colors">
+                            Ver detalhes
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
           </div>
 
-          {/* Pagination */}
-          <div className="flex justify-between items-center mt-6 px-6 pb-6">
-            <div className="text-sm text-slate-600">
-              Página {page + 1}
-            </div>
+          <div className="flex justify-between items-center px-6 py-3 border-t border-border bg-muted/20">
+            <span className="text-xs text-muted-foreground">Página {page + 1}</span>
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(Math.max(0, page - 1))}
-                disabled={page === 0}
-              >
-                Anterior
+              <Button variant="outline" size="sm" className="h-8 text-xs"
+                onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0}>
+                ← Anterior
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(page + 1)}
-                disabled={!listQuery.data || listQuery.data.length < ITEMS_PER_PAGE}
-              >
-                Próxima
+              <Button variant="outline" size="sm" className="h-8 text-xs"
+                onClick={() => setPage(page + 1)} disabled={!listQuery.data || listQuery.data.length < ITEMS_PER_PAGE}>
+                Próxima →
               </Button>
             </div>
           </div>
-        </Card>
+        </div>
       </div>
     </DashboardLayout>
   );

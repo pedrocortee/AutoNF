@@ -95,7 +95,6 @@ export async function createAsaasSubscription(params: {
   customerId: string;
   value: number;
   planName: string;
-  billingType?: "BOLETO" | "CREDIT_CARD" | "PIX";
   nextDueDate?: string;
 }): Promise<AsaasSubscriptionData> {
   const dueDate =
@@ -103,7 +102,7 @@ export async function createAsaasSubscription(params: {
 
   return asaasRequest<AsaasSubscriptionData>("POST", "/subscriptions", {
     customer: params.customerId,
-    billingType: params.billingType ?? "UNDEFINED",
+    billingType: "CREDIT_CARD",
     value: params.value,
     nextDueDate: dueDate,
     cycle: "MONTHLY",
@@ -159,4 +158,66 @@ export async function getAsaasPaymentLink(paymentId: string): Promise<string | u
  */
 export function isAsaasConfigured(): boolean {
   return !!process.env.ASAAS_API_KEY;
+}
+
+interface AsaasWebhookConfig {
+  id: string;
+  url: string;
+  enabled: boolean;
+  interrupted: boolean;
+}
+
+/**
+ * Ensure Asaas webhook is registered pointing to this server's public URL.
+ * Skipped in dev when PUBLIC_URL is localhost (no-op, syncSubscription is the fallback).
+ */
+export async function ensureAsaasWebhook(publicUrl: string): Promise<void> {
+  if (!isAsaasConfigured()) return;
+  if (publicUrl.includes("localhost") || publicUrl.includes("127.0.0.1")) return;
+
+  const webhookUrl = `${publicUrl}/api/webhooks/asaas`;
+  const events = [
+    "PAYMENT_CONFIRMED",
+    "PAYMENT_RECEIVED",
+    "PAYMENT_OVERDUE",
+    "PAYMENT_DELETED",
+    "SUBSCRIPTION_DELETED",
+  ];
+
+  try {
+    const existing = await asaasRequest<{ data: AsaasWebhookConfig[] }>("GET", "/webhooks");
+
+    // Remove stale webhooks pointing to other URLs (old tunnel URLs)
+    for (const w of existing.data) {
+      if (w.url !== webhookUrl) {
+        await asaasRequest("DELETE", `/webhooks/${w.id}`).catch(() => null);
+        console.log(`[asaas-webhook] removed stale webhook → ${w.url}`);
+      }
+    }
+
+    const ours = existing.data.find((w) => w.url === webhookUrl);
+    if (ours) {
+      if (!ours.enabled || ours.interrupted) {
+        await asaasRequest("PUT", `/webhooks/${ours.id}`, { enabled: true, interrupted: false });
+        console.log(`[asaas-webhook] re-enabled webhook → ${webhookUrl}`);
+      } else {
+        console.log(`[asaas-webhook] webhook already active → ${webhookUrl}`);
+      }
+      return;
+    }
+
+    await asaasRequest("POST", "/webhooks", {
+      name: "AutoNF",
+      url: webhookUrl,
+      email: process.env.EMAIL_FROM ?? "noreply@autonf.com.br",
+      apiVersion: "3",
+      sendType: "NON_SEQUENTIALLY",
+      enabled: true,
+      interrupted: false,
+      events,
+    });
+    console.log(`[asaas-webhook] registered webhook → ${webhookUrl}`);
+  } catch (err) {
+    console.error("[asaas-webhook] failed to register webhook:", err);
+  }
 }

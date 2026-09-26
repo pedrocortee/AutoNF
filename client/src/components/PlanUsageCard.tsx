@@ -1,123 +1,109 @@
-import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "./ui/button";
 import { useLocation } from "wouter";
+import { Sparkles, TrendingUp } from "lucide-react";
 
 export function PlanUsageCard() {
   const [, navigate] = useLocation();
   const { data: subscription } = trpc.plans.getSubscription.useQuery();
-  const { data: usage } = trpc.plans.getUsage.useQuery(undefined, {
-    enabled: !!subscription,
-  });
+  const { data: usage } = trpc.plans.getUsage.useQuery(undefined, { enabled: !!subscription });
 
   if (!subscription || !usage) {
     return (
-      <Card className="p-6 border-dashed border-2 border-slate-200 bg-slate-50/50">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-800">Nenhum plano ativo</h3>
-            <p className="text-sm text-slate-500 mt-1">
-              Selecione um plano para começar a emitir notas fiscais.
-            </p>
+      <div className="rounded-xl border border-dashed border-indigo-200 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/20 p-5">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-indigo-500" />
+              <p className="text-sm font-semibold text-foreground">Sem plano ativo</p>
+            </div>
+            <p className="text-xs text-muted-foreground">Escolha um plano para começar a emitir notas fiscais com o AutoNF.</p>
           </div>
+          <Button size="sm" onClick={() => navigate("/plans")} className="bg-indigo-600 hover:bg-indigo-700 shrink-0 ml-4">
+            Ver Planos
+          </Button>
         </div>
-        <Button onClick={() => navigate("/plans")} className="mt-4 w-full sm:w-auto">
-          Ver Planos
-        </Button>
-      </Card>
+      </div>
     );
   }
 
   const isNearLimit = usage.percentage >= 80;
   const isAtLimit = usage.percentage >= 100;
 
+  const progressColor = isAtLimit
+    ? "[&>div]:bg-red-500"
+    : isNearLimit
+      ? "[&>div]:bg-amber-500"
+      : "[&>div]:bg-indigo-600";
+
   return (
-    <Card className="p-6 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-slate-200 dark:border-slate-700">
+    <div className={`rounded-xl border p-5 ${
+      isAtLimit ? "border-red-200 dark:border-red-900 bg-red-50/30 dark:bg-red-950/20" : "border-border bg-card shadow-sm"
+    }`}>
       <div className="flex items-start justify-between mb-4">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-            Seu Plano: {subscription.plan.name}
-          </h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            R$ {(subscription.plan.pricePerMonth / 100).toFixed(0)}/mês
-          </p>
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-950/60 rounded-lg flex items-center justify-center">
+            <TrendingUp className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">{subscription.plan.name}</p>
+            <p className="text-xs text-muted-foreground">
+              R$ {(subscription.plan.pricePerMonth / 100).toFixed(0)}/mês
+            </p>
+          </div>
         </div>
-        {isAtLimit ? (
-          <AlertCircle className="w-6 h-6 text-red-500" />
-        ) : isNearLimit ? (
-          <AlertCircle className="w-6 h-6 text-yellow-500" />
-        ) : (
-          <CheckCircle2 className="w-6 h-6 text-green-500" />
-        )}
+        <div className="text-right">
+          <p className={`text-lg font-bold tabular-nums ${
+            isAtLimit ? "text-red-600" : isNearLimit ? "text-amber-600" : "text-foreground"
+          }`}>
+            {usage.usage}
+            <span className="text-sm font-normal text-muted-foreground ml-1">
+              / {subscription.plan.maxInvoicesPerMonth === 999999 ? "∞" : subscription.plan.maxInvoicesPerMonth}
+            </span>
+          </p>
+          <p className="text-[11px] text-muted-foreground">notas este mês</p>
+        </div>
       </div>
 
-      <div className="space-y-3">
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Notas Fiscais Emitidas
-            </span>
-            <span className="text-sm font-semibold text-slate-900 dark:text-white">
-              {usage.usage} / {subscription.plan.maxInvoicesPerMonth === 999999 ? "∞" : subscription.plan.maxInvoicesPerMonth}
-            </span>
-          </div>
-          <Progress
-            value={Math.min(usage.percentage, 100)}
-            className="h-2"
-          />
-        </div>
-
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-slate-600 dark:text-slate-400">
-            {usage.remaining > 0
-              ? `${usage.remaining} notas restantes`
-              : "Limite atingido"}
-          </span>
-          <span className={`font-semibold ${
-            isAtLimit
-              ? "text-red-600 dark:text-red-400"
+      <div className="space-y-1.5">
+        <Progress
+          value={Math.min(usage.percentage, 100)}
+          className={`h-1.5 bg-muted ${progressColor}`}
+        />
+        <div className="flex justify-between items-center">
+          <p className={`text-xs ${
+            isAtLimit ? "text-red-600 font-medium" : isNearLimit ? "text-amber-600" : "text-muted-foreground"
+          }`}>
+            {isAtLimit
+              ? "Limite atingido — faça upgrade para continuar"
               : isNearLimit
-                ? "text-yellow-600 dark:text-yellow-400"
-                : "text-green-600 dark:text-green-400"
+                ? `${usage.remaining} nota(s) restante(s)`
+                : `${usage.remaining} de ${subscription.plan.maxInvoicesPerMonth === 999999 ? "∞" : subscription.plan.maxInvoicesPerMonth} disponíveis`}
+          </p>
+          <span className={`text-xs font-semibold tabular-nums ${
+            isAtLimit ? "text-red-600" : isNearLimit ? "text-amber-600" : "text-indigo-600 dark:text-indigo-400"
           }`}>
             {usage.percentage}%
           </span>
         </div>
       </div>
 
-      {isAtLimit && (
-        <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-          <p className="text-sm text-red-700 dark:text-red-400">
-            Você atingiu o limite de notas fiscais para este mês. Faça upgrade do plano para continuar.
+      {(isAtLimit || isNearLimit) && (
+        <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            {isAtLimit ? "Precisa de mais notas?" : "Está chegando perto do limite."}
           </p>
           <Button
-            onClick={() => navigate("/plans")}
             size="sm"
-            className="mt-2 w-full"
-            variant="default"
+            variant={isAtLimit ? "default" : "outline"}
+            onClick={() => navigate("/plans")}
+            className={`h-7 text-xs ${isAtLimit ? "bg-indigo-600 hover:bg-indigo-700" : "border-border"}`}
           >
-            Fazer Upgrade
+            {isAtLimit ? "Fazer Upgrade" : "Ver Planos"}
           </Button>
         </div>
       )}
-
-      {isNearLimit && !isAtLimit && (
-        <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-          <p className="text-sm text-yellow-700 dark:text-yellow-400">
-            Você está próximo do limite. Considere fazer upgrade do plano.
-          </p>
-          <Button
-            onClick={() => navigate("/plans")}
-            size="sm"
-            className="mt-2 w-full"
-            variant="outline"
-          >
-            Ver Planos
-          </Button>
-        </div>
-      )}
-    </Card>
+    </div>
   );
 }

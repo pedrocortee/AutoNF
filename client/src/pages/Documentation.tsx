@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Bell, Zap, ShieldCheck, RefreshCw, AlertTriangle, XCircle } from "lucide-react";
 
 export default function Documentation() {
   const [, navigate] = useLocation();
@@ -48,6 +48,7 @@ export default function Documentation() {
             <li><a href="#modelo-dados" className="text-blue-600 hover:text-blue-700">5. Modelo de Dados</a></li>
             <li><a href="#stack" className="text-blue-600 hover:text-blue-700">6. Stack Tecnológica</a></li>
             <li><a href="#roadmap" className="text-blue-600 hover:text-blue-700">7. Roadmap Futuro</a></li>
+            <li><a href="#webhooks" className="text-blue-600 hover:text-blue-700">8. Webhooks — Integre o AutoNF com seu negócio</a></li>
           </ul>
         </nav>
 
@@ -58,10 +59,10 @@ export default function Documentation() {
             <div className="h-1 w-16 bg-gradient-to-r from-blue-500 to-blue-600 mt-4"></div>
           </div>
           <p className="text-slate-700 leading-relaxed">
-            <strong>AutoNF</strong> é um sistema web elegante e sofisticado para automação da emissão de notas fiscais de serviço. O MVP fornece um painel intuitivo onde usuários podem criar, gerenciar e acompanhar notas fiscais com processamento automático simulado.
+            <strong>AutoNF</strong> é uma plataforma SaaS para emissão automática de Notas Fiscais de Serviço Eletrônicas (NFS-e). O sistema integra diretamente com as APIs das prefeituras, gerencia certificados digitais A1, controla planos e assinaturas, e notifica sistemas externos via webhooks — tudo em um painel unificado.
           </p>
           <p className="text-slate-700 leading-relaxed">
-            O sistema foi projetado com foco em experiência do usuário premium, oferecendo uma interface refinada com tipografia elegante, espaçamentos generosos e hierarquia visual clara. Cada elemento foi cuidadosamente pensado para transmitir sofisticação e qualidade.
+            O AutoNF foi construído para prestadores de serviço que precisam emitir NFS-e com frequência e querem automatizar o processo: desde a criação da nota até o envio do PDF ao cliente, passando pela emissão na prefeitura e o cancelamento quando necessário.
           </p>
         </section>
 
@@ -73,24 +74,24 @@ export default function Documentation() {
           </div>
           <div className="space-y-4">
             <div className="bg-white rounded-lg border border-slate-200 p-6">
-              <h3 className="font-semibold text-slate-900 mb-2">Emissão Automática</h3>
-              <p className="text-slate-700">Crie notas fiscais em segundos. O sistema simula o processamento automático, transitando de Pendente para Processado (ou Erro) sem intervenção manual.</p>
+              <h3 className="font-semibold text-slate-900 mb-2">Emissão Real via API da Prefeitura</h3>
+              <p className="text-slate-700">Crie notas fiscais e envie diretamente para a prefeitura com seu certificado digital A1. O processamento é assíncrono — você não precisa aguardar na tela, o sistema avisa quando terminar.</p>
             </div>
             <div className="bg-white rounded-lg border border-slate-200 p-6">
-              <h3 className="font-semibold text-slate-900 mb-2">Dashboard Inteligente</h3>
-              <p className="text-slate-700">Visualize métricas em tempo real: total de notas, pendentes, processadas e com erro. Tenha controle total sobre seu fluxo de emissão.</p>
+              <h3 className="font-semibold text-slate-900 mb-2">Cancelamento com Prazo Automático</h3>
+              <p className="text-slate-700">Cancele notas diretamente na prefeitura informando o motivo. O sistema verifica automaticamente o prazo legal de cancelamento de cada município antes de permitir a operação.</p>
             </div>
             <div className="bg-white rounded-lg border border-slate-200 p-6">
-              <h3 className="font-semibold text-slate-900 mb-2">Filtros e Busca Avançada</h3>
-              <p className="text-slate-700">Encontre notas rapidamente por status, cliente ou período. Interface intuitiva para navegar entre centenas de notas sem esforço.</p>
+              <h3 className="font-semibold text-slate-900 mb-2">Planos com Controle de Uso</h3>
+              <p className="text-slate-700">Escolha o plano adequado ao seu volume de emissões. O sistema bloqueia automaticamente quando o limite mensal é atingido e exibe o consumo em tempo real no dashboard.</p>
             </div>
             <div className="bg-white rounded-lg border border-slate-200 p-6">
-              <h3 className="font-semibold text-slate-900 mb-2">Histórico Completo</h3>
-              <p className="text-slate-700">Acompanhe cada transição de status com timeline visual. Entenda exatamente o que aconteceu com cada nota fiscal.</p>
+              <h3 className="font-semibold text-slate-900 mb-2">Notificações e Webhooks</h3>
+              <p className="text-slate-700">Envie o PDF da nota por e-mail ao tomador automaticamente após a emissão. Integre com seu ERP ou qualquer sistema via webhooks em tempo real.</p>
             </div>
             <div className="bg-white rounded-lg border border-slate-200 p-6">
-              <h3 className="font-semibold text-slate-900 mb-2">Segurança Integrada</h3>
-              <p className="text-slate-700">Autenticação OAuth integrada. Dados protegidos e organizados por usuário. Apenas você acessa suas notas fiscais.</p>
+              <h3 className="font-semibold text-slate-900 mb-2">Dashboard e Histórico Completo</h3>
+              <p className="text-slate-700">Visualize métricas em tempo real, filtre notas por status, cliente ou período, e acompanhe cada transição de status com timestamp exato em uma timeline visual.</p>
             </div>
           </div>
         </section>
@@ -105,102 +106,103 @@ export default function Documentation() {
             O AutoNF segue uma arquitetura moderna com separação clara entre frontend e backend, utilizando tRPC para comunicação type-safe.
           </p>
           <div className="bg-slate-900 rounded-lg p-8 text-slate-100 font-mono text-sm overflow-x-auto">
-            <pre>Fluxo de Emissão Automática:
+            <pre>{`Fluxo de Emissão de NFS-e:
 
-1. Usuário cria nota fiscal no formulário
+1. Usuário preenche o formulário e cria a nota
    ↓
-2. Backend cria registro com status "Pendente"
+2. Backend valida plano e limite de uso mensal
    ↓
-3. Histórico registra transição: Criado → Pendente
+3. Nota criada com status "Pendente" + webhook invoice.created disparado
    ↓
-4. Frontend aguarda 2 segundos (simulação)
+4. Usuário clica em "Enviar para Prefeitura"
    ↓
-5. Processamento automático:
-   - 90% de chance: Pendente → Processado ✓
-   - 10% de chance: Pendente → Erro ✗
+5. Job enfileirado no BullMQ (processamento assíncrono)
+   Nota passa para status "Processando"
    ↓
-6. Histórico registra transição final
+6. Worker executa: assina XML com certificado A1 + envia à API da prefeitura
+   ├── Sucesso → status "Processado", NFS-e number salvo, PDF gerado
+   │             webhook invoice.processed + e-mail ao tomador
+   └── Erro    → status "Erro", mensagem salva
+                 webhook invoice.error + e-mail de alerta ao prestador
    ↓
-7. Frontend atualiza em tempo real</pre>
+7. Frontend atualiza via polling até receber resultado final`}</pre>
           </div>
           <p className="text-slate-700 leading-relaxed">
             <strong>Estados da Nota Fiscal:</strong>
           </p>
           <ul className="space-y-2 text-slate-700">
-            <li><strong>Pendente:</strong> Nota criada, aguardando processamento automático</li>
-            <li><strong>Processado:</strong> Nota emitida com sucesso (pronta para integração real com APIs)</li>
-            <li><strong>Erro:</strong> Falha no processamento (simulado ou real em futuras versões)</li>
+            <li><strong>Pendente:</strong> Nota criada, aguardando ser enviada à prefeitura</li>
+            <li><strong>Processando:</strong> Job enfileirado, aguardando resposta da prefeitura</li>
+            <li><strong>Processado:</strong> NFS-e emitida com sucesso — número e PDF disponíveis</li>
+            <li><strong>Erro:</strong> Falha na comunicação com a prefeitura após tentativas</li>
+            <li><strong>Cancelado:</strong> NFS-e cancelada na prefeitura com protocolo registrado</li>
           </ul>
         </section>
 
         {/* Section 4 */}
         <section id="funcionalidades" className="space-y-6">
           <div>
-            <h2 className="text-3xl font-bold text-slate-900">4. Funcionalidades do MVP</h2>
+            <h2 className="text-3xl font-bold text-slate-900">4. Funcionalidades</h2>
             <div className="h-1 w-16 bg-gradient-to-r from-blue-500 to-blue-600 mt-4"></div>
           </div>
           <div className="space-y-4">
             <div className="bg-white rounded-lg border border-slate-200 p-6">
-              <h3 className="font-semibold text-slate-900 mb-3">Dashboard com Métricas</h3>
-              <p className="text-slate-700 mb-3">Painel principal exibindo:</p>
+              <h3 className="font-semibold text-slate-900 mb-3">Notas Fiscais (NFS-e)</h3>
               <ul className="list-disc list-inside space-y-1 text-slate-700 ml-2">
-                <li>Total de notas fiscais emitidas</li>
-                <li>Quantidade de notas pendentes</li>
-                <li>Quantidade de notas processadas</li>
-                <li>Quantidade de notas com erro</li>
+                <li>Criação com cliente, serviço, valor, competência, retenções (IRPJ, CSLL, COFINS, PIS, INSS) e CPF/CNPJ do tomador</li>
+                <li>Cálculo automático do ISS com base na alíquota configurada</li>
+                <li>Envio assíncrono à API da prefeitura com assinatura XML via certificado A1</li>
+                <li>Cancelamento com verificação automática do prazo legal por município</li>
+                <li>Download do PDF da NFS-e emitida</li>
+                <li>Filtros por status, cliente e mês de competência</li>
+                <li>Timeline completa de histórico de cada nota</li>
               </ul>
             </div>
             <div className="bg-white rounded-lg border border-slate-200 p-6">
-              <h3 className="font-semibold text-slate-900 mb-3">Listagem de Notas Fiscais</h3>
-              <p className="text-slate-700 mb-3">Tabela com colunas:</p>
+              <h3 className="font-semibold text-slate-900 mb-3">Planos e Assinaturas</h3>
               <ul className="list-disc list-inside space-y-1 text-slate-700 ml-2">
-                <li>Cliente (Tomador)</li>
-                <li>Descrição do Serviço</li>
-                <li>Valor</li>
-                <li>Competência (mês)</li>
-                <li>Status com badge visual</li>
-                <li>Data de criação</li>
-                <li>Ação: Ver Detalhes</li>
+                <li>4 planos: Gratuito (3 notas/mês), Starter, Professional e Enterprise</li>
+                <li>Controle de uso mensal com bloqueio ao atingir o limite</li>
+                <li>Upgrade e downgrade imediatos</li>
+                <li>Plano Gratuito ativa diretamente; planos pagos redirecionam ao checkout do Asaas</li>
+                <li>Cancelamento de assinatura com cancelamento automático no Asaas</li>
               </ul>
             </div>
             <div className="bg-white rounded-lg border border-slate-200 p-6">
-              <h3 className="font-semibold text-slate-900 mb-3">Formulário de Cadastro</h3>
-              <p className="text-slate-700 mb-3">Modal elegante para criar nova nota com campos:</p>
+              <h3 className="font-semibold text-slate-900 mb-3">Certificado Digital</h3>
               <ul className="list-disc list-inside space-y-1 text-slate-700 ml-2">
-                <li>Cliente (Tomador) - obrigatório</li>
-                <li>Descrição do Serviço - obrigatório</li>
-                <li>Valor - obrigatório, validação de número positivo</li>
-                <li>Competência - obrigatório, formato YYYY-MM</li>
+                <li>Upload de certificado A1 (.pfx / .p12)</li>
+                <li>Validação automática de integridade e datas</li>
+                <li>Senha criptografada antes de ser armazenada</li>
+                <li>Alerta automático quando o certificado expira em até 30 dias</li>
+                <li>Histórico de certificados enviados</li>
               </ul>
             </div>
             <div className="bg-white rounded-lg border border-slate-200 p-6">
-              <h3 className="font-semibold text-slate-900 mb-3">Filtros e Busca</h3>
-              <p className="text-slate-700 mb-3">Filtros avançados para encontrar notas:</p>
+              <h3 className="font-semibold text-slate-900 mb-3">Configurações da Empresa</h3>
               <ul className="list-disc list-inside space-y-1 text-slate-700 ml-2">
-                <li>Filtro por Status (Pendente, Processado, Erro)</li>
-                <li>Busca por Nome do Cliente</li>
-                <li>Filtro por Competência (mês)</li>
+                <li>CNPJ, inscrição municipal, razão social, endereço, município e estado</li>
+                <li>Alíquota ISS por município (2% a 5%)</li>
+                <li>Código de serviço LC 116/2003</li>
               </ul>
             </div>
             <div className="bg-white rounded-lg border border-slate-200 p-6">
-              <h3 className="font-semibold text-slate-900 mb-3">Página de Detalhe</h3>
-              <p className="text-slate-700 mb-3">Visualização completa de uma nota com:</p>
+              <h3 className="font-semibold text-slate-900 mb-3">Notificações por E-mail</h3>
               <ul className="list-disc list-inside space-y-1 text-slate-700 ml-2">
-                <li>Informações completas da nota</li>
-                <li>Status atual com badge visual</li>
-                <li>Timeline visual do histórico de status</li>
-                <li>Mensagem de erro (se aplicável)</li>
-                <li>Data e hora de cada transição</li>
+                <li>Envio automático do PDF da NFS-e ao tomador após emissão</li>
+                <li>Alerta ao prestador quando uma nota falha após todas as tentativas</li>
+                <li>E-mail padrão do tomador configurável</li>
+                <li>Suporte a SMTP próprio ou Resend como provedor</li>
               </ul>
             </div>
             <div className="bg-white rounded-lg border border-slate-200 p-6">
-              <h3 className="font-semibold text-slate-900 mb-3">Autenticação Integrada</h3>
-              <p className="text-slate-700 mb-3">Segurança em todos os níveis:</p>
+              <h3 className="font-semibold text-slate-900 mb-3">Autenticação e Conta</h3>
               <ul className="list-disc list-inside space-y-1 text-slate-700 ml-2">
-                <li>OAuth integrado com Manus</li>
-                <li>Todas as rotas do painel protegidas</li>
-                <li>Dados isolados por usuário</li>
-                <li>Logout seguro</li>
+                <li>Autenticação via Clerk (login, cadastro, sessão segura)</li>
+                <li>Sincronização automática de nome e e-mail via webhook do Clerk</li>
+                <li>Consentimento de privacidade (LGPD)</li>
+                <li>Exclusão de conta com remoção de todos os dados</li>
+                <li>Modo claro e escuro configurável em Configurações → Conta</li>
               </ul>
             </div>
           </div>
@@ -352,22 +354,25 @@ export default function Documentation() {
               <h3 className="font-semibold text-slate-900 mb-4">Backend</h3>
               <ul className="space-y-2 text-slate-700">
                 <li><strong>Express 4:</strong> Web framework</li>
-                <li><strong>tRPC 11:</strong> RPC framework</li>
-                <li><strong>Drizzle ORM:</strong> Type-safe queries</li>
-                <li><strong>MySQL/TiDB:</strong> Banco de dados</li>
-                <li><strong>OAuth:</strong> Autenticação Manus</li>
+                <li><strong>tRPC 11:</strong> RPC framework type-safe</li>
+                <li><strong>Drizzle ORM:</strong> Queries type-safe</li>
+                <li><strong>MySQL:</strong> Banco de dados relacional</li>
+                <li><strong>BullMQ:</strong> Fila de jobs para emissão assíncrona</li>
+                <li><strong>Clerk:</strong> Autenticação e gerenciamento de usuários</li>
+                <li><strong>Asaas:</strong> Gateway de pagamento brasileiro</li>
                 <li><strong>Zod:</strong> Validação de schemas</li>
+                <li><strong>SMTP / Resend:</strong> Envio de e-mails</li>
               </ul>
             </div>
           </div>
           <div className="bg-blue-50 rounded-lg border border-blue-200 p-6">
             <h3 className="font-semibold text-slate-900 mb-3">Decisões de Design</h3>
             <ul className="space-y-2 text-slate-700">
-              <li>✓ <strong>tRPC:</strong> Elimina necessidade de REST API manual e garante type safety end-to-end</li>
+              <li>✓ <strong>tRPC:</strong> Elimina REST API manual e garante type safety end-to-end</li>
+              <li>✓ <strong>BullMQ:</strong> Emissão assíncrona evita timeout na requisição HTTP ao enviar à prefeitura</li>
               <li>✓ <strong>Drizzle ORM:</strong> Queries type-safe com excelente DX</li>
-              <li>✓ <strong>Tailwind CSS:</strong> Desenvolvimento rápido com design tokens consistentes</li>
-              <li>✓ <strong>shadcn/ui:</strong> Componentes acessíveis e customizáveis</li>
-              <li>✓ <strong>OAuth Manus:</strong> Autenticação segura sem gerenciar senhas</li>
+              <li>✓ <strong>Clerk:</strong> Autenticação robusta sem gerenciar senhas ou sessões manualmente</li>
+              <li>✓ <strong>Asaas:</strong> Gateway de pagamento nativo BR com suporte a boleto, Pix e cartão</li>
             </ul>
           </div>
         </section>
@@ -375,43 +380,225 @@ export default function Documentation() {
         {/* Section 7 */}
         <section id="roadmap" className="space-y-6">
           <div>
-            <h2 className="text-3xl font-bold text-slate-900">7. Roadmap Futuro</h2>
+            <h2 className="text-3xl font-bold text-slate-900">7. Roadmap</h2>
             <div className="h-1 w-16 bg-gradient-to-r from-blue-500 to-blue-600 mt-4"></div>
           </div>
-          <p className="text-slate-700 leading-relaxed">
-            O MVP estabelece uma base sólida para expansão. Abaixo estão as funcionalidades planejadas para versões futuras:
-          </p>
           <div className="bg-green-50 rounded-lg border border-green-200 p-6">
-            <h3 className="font-semibold text-slate-900 mb-4">✓ MVP (Versão Atual)</h3>
+            <h3 className="font-semibold text-slate-900 mb-4">✓ Entregue (versão atual)</h3>
             <ul className="space-y-2 text-slate-700">
-              <li>Dashboard com métricas</li>
-              <li>Listagem de notas fiscais</li>
-              <li>Formulário de cadastro</li>
-              <li>Simulação de processamento automático</li>
-              <li>Filtros e busca</li>
-              <li>Página de detalhe com histórico</li>
-              <li>Autenticação OAuth</li>
+              <li>✓ Emissão real de NFS-e via API das prefeituras (Porto Alegre, Caxias do Sul, Novo Hamburgo)</li>
+              <li>✓ Cancelamento de NFS-e com verificação de prazo legal por município</li>
+              <li>✓ Processamento assíncrono com BullMQ e polling de status</li>
+              <li>✓ Certificado digital A1 com validação, criptografia e alerta de expiração</li>
+              <li>✓ Planos e assinaturas com controle de uso mensal</li>
+              <li>✓ Pagamentos via Asaas (boleto, Pix, cartão)</li>
+              <li>✓ PDF da NFS-e gerado e disponível para download</li>
+              <li>✓ Notificações por e-mail ao tomador e ao prestador</li>
+              <li>✓ Webhooks com assinatura HMAC-SHA256 e retry automático</li>
+              <li>✓ Dashboard com métricas, filtros e histórico completo</li>
+              <li>✓ Autenticação via Clerk com sincronização de perfil</li>
+              <li>✓ Modo claro e escuro</li>
             </ul>
           </div>
           <div className="bg-blue-50 rounded-lg border border-blue-200 p-6">
-            <h3 className="font-semibold text-slate-900 mb-4">📋 Próxima Versão (v1.1)</h3>
+            <h3 className="font-semibold text-slate-900 mb-4">📋 Próximas versões</h3>
             <ul className="space-y-2 text-slate-700">
-              <li>Integração real com APIs de prefeituras (São Paulo, Rio de Janeiro, etc.)</li>
-              <li>Suporte a múltiplas empresas/CNPJ</li>
-              <li>Relatórios em PDF</li>
-              <li>Exportação de dados (CSV, Excel)</li>
+              <li>Expansão para mais municípios (São Paulo, Rio de Janeiro, Belo Horizonte)</li>
+              <li>Suporte a múltiplas empresas/CNPJ por conta</li>
+              <li>Exportação de dados (CSV, Excel) para contabilidade</li>
+              <li>Dashboard avançado com analytics e gráficos de faturamento</li>
+              <li>API pública REST para integração direta sem webhooks</li>
+              <li>Integração nativa com escritórios de contabilidade</li>
+              <li>Aplicativo mobile</li>
             </ul>
           </div>
-          <div className="bg-purple-50 rounded-lg border border-purple-200 p-6">
-            <h3 className="font-semibold text-slate-900 mb-4">🚀 Futuras Versões</h3>
-            <p className="text-slate-700 mb-3">Após consolidar o MVP e a integração real com prefeituras, o roadmap inclui:</p>
-            <ul className="space-y-2 text-slate-700">
-              <li>API pública para integração de terceiros</li>
-              <li>Suporte a outros tipos de documentos fiscais</li>
-              <li>Dashboard avançado com analytics</li>
-              <li>Aplicativo mobile</li>
-              <li>Integração com contadores e escritórios</li>
-            </ul>
+        </section>
+
+        {/* Section 8 — Webhooks */}
+        <section id="webhooks" className="space-y-8">
+          <div>
+            <h2 className="text-3xl font-bold text-slate-900">8. Webhooks — Integre o AutoNF com seu negócio</h2>
+            <div className="h-1 w-16 bg-gradient-to-r from-blue-500 to-blue-600 mt-4"></div>
+          </div>
+
+          {/* O que é */}
+          <div className="bg-white rounded-lg border border-slate-200 p-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center shrink-0">
+                <Bell className="w-5 h-5 text-indigo-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-slate-900">O que é um Webhook?</h3>
+            </div>
+            <p className="text-slate-700 leading-relaxed mb-4">
+              Imagine que você contratou um funcionário para emitir notas fiscais. Toda vez que ele termina uma nota, em vez de você ficar perguntando <em>"terminou? terminou?"</em>, ele te manda uma mensagem automática avisando: <strong>"Pronto, nota emitida."</strong>
+            </p>
+            <p className="text-slate-700 leading-relaxed mb-4">
+              Webhook é exatamente isso — o AutoNF avisa automaticamente o sistema que você quiser (ERP, WhatsApp, planilha, sistema financeiro) no momento em que algo acontece, sem você precisar entrar no painel para verificar.
+            </p>
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-5 mt-4">
+              <p className="text-sm font-semibold text-slate-700 mb-3">Sem webhook, seu processo é assim:</p>
+              <div className="flex items-center gap-2 flex-wrap text-sm text-slate-600 mb-4">
+                <span className="bg-slate-200 px-2 py-1 rounded">Nota emitida</span>
+                <span>→</span>
+                <span className="bg-slate-200 px-2 py-1 rounded">Você entra no AutoNF</span>
+                <span>→</span>
+                <span className="bg-slate-200 px-2 py-1 rounded">Atualiza manualmente</span>
+                <span>→</span>
+                <span className="bg-slate-200 px-2 py-1 rounded">Avisa o cliente</span>
+              </div>
+              <p className="text-sm font-semibold text-slate-700 mb-3">Com webhook, tudo acontece sozinho:</p>
+              <div className="flex items-center gap-2 flex-wrap text-sm text-slate-600">
+                <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded font-medium">Nota emitida</span>
+                <span>→</span>
+                <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded font-medium">AutoNF avisa seu sistema</span>
+                <span>→</span>
+                <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded font-medium">Tudo atualizado automaticamente</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Eventos */}
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">Eventos disponíveis</h3>
+            <p className="text-slate-600 mb-5">O AutoNF envia um aviso automático em 4 momentos diferentes da vida de uma nota fiscal:</p>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="bg-white rounded-lg border border-slate-200 p-5">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
+                    <Zap className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <code className="text-sm font-mono font-semibold text-slate-800">invoice.created</code>
+                </div>
+                <p className="text-sm text-slate-600">Disparado quando uma nova nota fiscal é criada no sistema, antes de ser enviada à prefeitura.</p>
+                <p className="text-xs text-slate-400 mt-2 font-medium">Útil para: iniciar cobrança, registrar no ERP</p>
+              </div>
+              <div className="bg-white rounded-lg border border-slate-200 p-5">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-4 h-4 text-green-600" />
+                  </div>
+                  <code className="text-sm font-mono font-semibold text-slate-800">invoice.processed</code>
+                </div>
+                <p className="text-sm text-slate-600">Disparado quando a nota é emitida com sucesso pela prefeitura e o número da NFS-e é gerado.</p>
+                <p className="text-xs text-slate-400 mt-2 font-medium">Útil para: enviar PDF ao cliente, liberar pagamento</p>
+              </div>
+              <div className="bg-white rounded-lg border border-slate-200 p-5">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <code className="text-sm font-mono font-semibold text-slate-800">invoice.error</code>
+                </div>
+                <p className="text-sm text-slate-600">Disparado quando a nota falha após todas as tentativas de reenvio automático.</p>
+                <p className="text-xs text-slate-400 mt-2 font-medium">Útil para: alerta no WhatsApp, Slack, e-mail de emergência</p>
+              </div>
+              <div className="bg-white rounded-lg border border-slate-200 p-5">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center shrink-0">
+                    <XCircle className="w-4 h-4 text-red-600" />
+                  </div>
+                  <code className="text-sm font-mono font-semibold text-slate-800">invoice.cancelled</code>
+                </div>
+                <p className="text-sm text-slate-600">Disparado quando uma nota processada é cancelada na prefeitura com o número de protocolo.</p>
+                <p className="text-xs text-slate-400 mt-2 font-medium">Útil para: estorno automático, novo ciclo de faturamento</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Casos de uso */}
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">Como usar no seu negócio</h3>
+            <div className="space-y-4">
+              <div className="bg-white rounded-lg border border-slate-200 p-6">
+                <p className="font-semibold text-slate-900 mb-1">"Quero que meu cliente receba o PDF da nota automaticamente"</p>
+                <p className="text-sm text-slate-600">Configure um webhook para <code className="bg-slate-100 px-1 rounded text-xs">invoice.processed</code>. Quando a nota sair, seu sistema recebe o aviso e dispara o e-mail com o PDF para o cliente — sem você fazer nada.</p>
+              </div>
+              <div className="bg-white rounded-lg border border-slate-200 p-6">
+                <p className="font-semibold text-slate-900 mb-1">"Quero saber imediatamente se uma nota deu erro"</p>
+                <p className="text-sm text-slate-600">Configure um webhook para <code className="bg-slate-100 px-1 rounded text-xs">invoice.error</code> apontando para o Zapier ou Make. O Zapier envia uma mensagem no WhatsApp ou Slack na hora. Você resolve antes do cliente reclamar.</p>
+              </div>
+              <div className="bg-white rounded-lg border border-slate-200 p-6">
+                <p className="font-semibold text-slate-900 mb-1">"Só libero o pagamento ao meu fornecedor após a nota ser emitida"</p>
+                <p className="text-sm text-slate-600">Configure <code className="bg-slate-100 px-1 rounded text-xs">invoice.processed</code> no seu sistema financeiro. Quando o AutoNF confirmar a emissão, o sistema libera o pagamento automaticamente — sem aprovação manual.</p>
+              </div>
+              <div className="bg-white rounded-lg border border-slate-200 p-6">
+                <p className="font-semibold text-slate-900 mb-1">"Preciso que meu contador tenha tudo registrado em tempo real"</p>
+                <p className="text-sm text-slate-600">Cada evento vai automaticamente para o sistema do contador com data e hora exatas. Sem e-mail, sem planilha, sem esquecimento.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Como configurar */}
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-8">
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">Como configurar em 3 passos</h3>
+            <div className="space-y-4">
+              <div className="flex gap-4">
+                <div className="w-7 h-7 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-bold shrink-0 mt-0.5">1</div>
+                <div>
+                  <p className="font-medium text-slate-900">Obtenha o endereço do seu sistema</p>
+                  <p className="text-sm text-slate-600 mt-0.5">Pode ser o endereço do seu ERP, um fluxo do Zapier/Make, ou qualquer URL que aceite requisições HTTP. Exemplo: <code className="bg-white px-1 rounded text-xs border border-indigo-200">https://meusite.com.br/webhooks/autonf</code></p>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="w-7 h-7 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-bold shrink-0 mt-0.5">2</div>
+                <div>
+                  <p className="font-medium text-slate-900">Acesse Configurações → Webhooks no AutoNF</p>
+                  <p className="text-sm text-slate-600 mt-0.5">Cole o endereço, escolha quais eventos quer receber e clique em "Criar endpoint". Guarde a chave secreta que aparecer — ela não é exibida novamente.</p>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="w-7 h-7 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-bold shrink-0 mt-0.5">3</div>
+                <div>
+                  <p className="font-medium text-slate-900">Pronto — o AutoNF avisa automaticamente</p>
+                  <p className="text-sm text-slate-600 mt-0.5">A partir de agora, toda vez que o evento ocorrer, o AutoNF envia um aviso em tempo real para o endereço cadastrado. Você acompanha o histórico de entregas diretamente na tela de Webhooks.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Retry */}
+          <div className="bg-white rounded-lg border border-slate-200 p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <RefreshCw className="w-5 h-5 text-slate-500" />
+              <h3 className="font-semibold text-slate-900">Reenvio automático em caso de falha</h3>
+            </div>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Se o seu sistema estiver fora do ar no momento do evento, o AutoNF tenta reenviar automaticamente até <strong>3 vezes</strong>, com intervalo crescente entre as tentativas. Se todas falharem, o evento fica registrado no histórico de entregas como falha, e você pode acompanhar o motivo diretamente na tela de Webhooks.
+            </p>
+          </div>
+
+          {/* Para desenvolvedores */}
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">Para desenvolvedores — verificando a autenticidade</h3>
+            <p className="text-slate-600 mb-4 text-sm">Cada requisição enviada pelo AutoNF inclui um header de assinatura. Valide-o no seu servidor para garantir que o evento veio realmente do AutoNF e não de terceiros.</p>
+            <div className="bg-slate-900 rounded-lg p-6 text-slate-100 font-mono text-sm overflow-x-auto">
+              <pre>{`// Header enviado em cada requisição:
+X-AutoNF-Signature: sha256=<hmac>
+X-AutoNF-Event: invoice.processed
+X-AutoNF-Delivery: 42
+
+// Exemplo de payload:
+{
+  "event": "invoice.processed",
+  "timestamp": "2026-05-23T14:30:00.000Z",
+  "data": {
+    "invoiceId": 123,
+    "nfseNumber": "NF-00189",
+    "clientName": "Empresa ABC Ltda",
+    "value": 500000
+  }
+}
+
+// Verificação da assinatura (Node.js):
+const sig = crypto
+  .createHmac('sha256', SEU_SEGREDO)
+  .update(rawBody)
+  .digest('hex');
+
+if (\`sha256=\${sig}\` !== req.headers['x-autonf-signature']) {
+  return res.status(401).end(); // Requisição inválida
+}`}</pre>
+            </div>
           </div>
         </section>
 
