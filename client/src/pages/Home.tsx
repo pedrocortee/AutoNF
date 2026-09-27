@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { SignInButton } from "@clerk/clerk-react";
 import { ArrowRight, CheckCircle2, Zap, BarChart3, Shield, FileCheck } from "lucide-react";
 import { useEffect } from "react";
+import { AccountingFirmsSection } from "@/components/AccountingFirmsSection";
 
 export default function Home() {
   const { isAuthenticated, loading } = useAuth();
@@ -33,6 +34,12 @@ export default function Home() {
             <span className="font-semibold text-slate-900">AutoNF</span>
           </div>
           <div className="flex items-center gap-6">
+            <a
+              href="#escritorios"
+              className="hidden sm:inline text-sm text-slate-500 hover:text-slate-900 transition-colors"
+            >
+              Para escritórios
+            </a>
             <button
               className="text-sm text-slate-500 hover:text-slate-900 transition-colors"
               onClick={() => navigate("/docs")}
@@ -225,6 +232,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* ── Para escritórios de contabilidade ── */}
+      <AccountingFirmsSection />
 
       {/* ── CTA ── */}
       <section className="relative bg-indigo-600 overflow-hidden">

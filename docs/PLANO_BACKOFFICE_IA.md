@@ -475,45 +475,37 @@ reuniões marcadas vale mais que uma funcionalidade perfeita sem ninguém para v
 
 ## 12. Próxima ação
 
-**Onde as coisas estão:** Fases 0, A, B e o núcleo da C estão feitas e **em produção** (ver seção 4-bis).
-451 testes passando. Branch `feat/entrada-ia` no ar, GitHub conectado, deploy automático a cada push.
-O que falta pra fechar os 30 dias é sobretudo **comercial** (a trilha da seção 7 ainda não começou) e
-alguns itens técnicos que dependem de decisões suas.
+**Onde as coisas estão:** Fases 0, A, B e o núcleo da C feitos e **em produção** (seção 4-bis), 451 testes
+passando. O que falta para fechar os 30 dias é sobretudo **comercial**, mais alguns itens técnicos que
+dependem de decisões suas.
 
-### Ao retomar, nesta ordem:
+### Roteiro da próxima sessão, nesta ordem
 
-1. **Alinhar a `main` local com o GitHub.** Sua `main` local tem 7 commits antigos que o GitHub não tem
-   (plano gratuito, correções do Asaas/Clerk); a `main` do GitHub tem 1 commit que a sua local não tem
-   (o workflow do ping). No terminal:
-   ```
-   git checkout main
-   git pull --rebase origin main
-   git checkout feat/entrada-ia
-   ```
-   Depois, decida se quer subir os 7 commits antigos para o GitHub (`git push origin main`) — eles já
-   estão testados, é a tarefa 0.1 do plano original.
+1. ✅ **`main` local alinhada com o GitHub** (27/09): `origin/main` (workflow do ping) mesclado na `main` local
+   com merge, não rebase — a `feat/entrada-ia` já foi publicada em cima dos 7 commits antigos e um rebase
+   mudaria os hashes deles. Falta só decidir se sobe: `git push origin main` (tarefa 0.1).
 
-2. **Decidir o CNPJ do setup** (seção 11) — destrava a compra do e-CNPJ A1, que por sua vez destrava:
-   - Validar a captura SEFAZ (C.1) na SEFAZ real de homologação, não só contra o simulador
-   - A manifestação de Ciência da Operação (C.3)
-   - Testar a emissão de NFS-e de verdade (hoje as chaves do Clerk e o fluxo já funcionam, falta a nota real)
+2. **Decidir o CNPJ do setup** (seção 11). É o que destrava a compra do **e-CNPJ A1**, e com ele:
+   - validar a captura SEFAZ (C.1) na **SEFAZ real** de homologação, não só no simulador;
+   - a manifestação de Ciência da Operação (C.3);
+   - emitir uma NFS-e de verdade.
 
-3. **Gravar o vídeo de demo de 2 minutos (A.8)** — é o único item da Fase A que falta, e o app já está
-   estável em produção para gravar direto de lá (https://autonf-web.onrender.com) em vez de local.
+3. **Gravar o vídeo da demo de 2 minutos (A.8)** — único item pendente da Fase A. Gravar direto da
+   produção (https://autonf-web.onrender.com).
 
-4. **Retomar a trilha comercial (seção 7, Semana 1)** — nada disso foi iniciado ainda:
-   - Lista de 60 escritórios da região
-   - 10 conversas de descoberta na rede pessoal
-   - Roteiro do diagnóstico pago + contrato modelo
-   - Seção "Para escritórios de contabilidade" na landing, com o vídeo da demo
+4. **Retomar a trilha comercial (seção 7)** — nada da Semana 1 foi começado:
+   - lista de 60 escritórios da região;
+   - 10 conversas de descoberta na rede pessoal;
+   - roteiro do diagnóstico pago + contrato modelo;
+   - ✅ seção "Para escritórios de contabilidade" na landing (`AccountingFirmsSection.tsx`, link no menu).
+     Vídeo e botão "Agendar diagnóstico" aparecem quando existirem as variáveis `VITE_DEMO_VIDEO_URL`
+     (YouTube, Vimeo ou arquivo) e `VITE_DIAGNOSTICO_URL` (WhatsApp/Calendly) no build do Render.
 
 5. **Itens técnicos menores, quando sobrar tempo:**
-   - Repositório público vs. privado (seção 11)
-   - Confirmar a cota do Gratuito na Entrada (10 ou 5 documentos — seção 11)
-   - CT-e (C.5) e pesquisa da NFS-e Nacional/ADN (C.6) — só depois da SEFAZ real validada
-   - Testar a Entrada com documentos reais de um cliente (os testes de hoje usam fixtures fictícias)
-   - MCP do `ruflo` não conectou nesta sessão (timeout) — reconectar com `/mcp` se for usá-lo
+   - repositório público ou privado (seção 11);
+   - cota do Gratuito na Entrada: 10 ou 5 documentos (seção 11);
+   - CT-e (C.5) e NFS-e Nacional/ADN (C.6) — só depois da SEFAZ real validada.
 
-### O que NÃO precisa mais de atenção (resolvido)
-Push para o GitHub, deploy, banco de produção, storage dos arquivos, webhook do Asaas, plano gratuito
-por conta — tudo isso foi feito e verificado nesta sessão (seção 4-bis).
+### O que já não precisa de atenção
+Push da `feat/entrada-ia`, deploy automático, banco de produção, storage dos arquivos, webhook do Asaas
+e plano gratuito por conta — **tudo resolvido e verificado** (seção 4-bis).
